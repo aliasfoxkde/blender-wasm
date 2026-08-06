@@ -7,4 +7,14 @@
       the browser to streamline the process, and reduces the technical overhead.
 - [ ] Get test, code, and documentation coverage to over 99%
   - [ ] Initially just for our code but then for Blender code itself.
-- [ ] Create API Backend observability and interactive documentation dashboard
+- [ ] Create API Backend observability, configuration, and interactive documentation dashboard
+- [ ] Integrate Alibaba Page Agent (or custom, etc.) to control the GUI
+      See: https://github.com/alibaba/page-agent
+- [ ] Do aggressive SIMD optimizations, smart routing, and lazy loading (only data used)
+  - [ ] "Learn" the users behavior and enable just the features they use, etc.
+  - [ ] Could a smarter search algorithm, multithreading/tasking, etc. be implemented?
+
+## Benchmarking
+
+## Q & A:
+- Can we reach "perceived" native performance in the browser?

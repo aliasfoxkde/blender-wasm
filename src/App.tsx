@@ -4,7 +4,11 @@ import { Header } from './components/Header';
 import { Splash } from './components/Splash';
 import { Dashboard } from './components/Dashboard';
 import { BlenderViewport } from './components/BlenderViewport';
+import { DownloadManagerUI } from './components/DownloadProgress';
+import { InstallPrompt } from './components/InstallPrompt';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { HardwareProfiler } from './core/HardwareProfiler';
+import { pwaInstallManager } from './platform/PWAInstall';
 import type { CapabilityProfile } from './core/HardwareProfiler';
 
 export interface AppState {
@@ -25,6 +29,9 @@ const App: Component = () => {
   });
 
   onMount(async () => {
+    // Initialize PWA install prompt
+    pwaInstallManager.init();
+
     // Profile hardware capabilities
     const profiler = new HardwareProfiler();
     const profile = await profiler.profile();
@@ -61,6 +68,8 @@ const App: Component = () => {
         capabilityProfile={state.capabilityProfile}
       />
 
+      <OfflineIndicator />
+
       {state.currentView === 'splash' && (
         <Splash
           progress={state.loadProgress}
@@ -82,6 +91,9 @@ const App: Component = () => {
           capabilityProfile={state.capabilityProfile}
         />
       )}
+
+      <DownloadManagerUI />
+      <InstallPrompt />
     </div>
   );
 };
