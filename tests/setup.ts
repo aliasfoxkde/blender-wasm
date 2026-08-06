@@ -51,6 +51,20 @@ Object.defineProperty(global, 'navigator', {
     gpu: null,
     storage: {
       estimate: vi.fn().mockResolvedValue({ quota: 1000000000, usage: 0 }),
+      getDirectory: vi.fn().mockResolvedValue({
+        getDirectoryHandle: vi.fn().mockResolvedValue({
+          getFileHandle: vi.fn().mockResolvedValue({
+            createWritable: vi.fn().mockReturnValue({
+              write: vi.fn(),
+              close: vi.fn(),
+            }),
+            getFile: vi.fn().mockResolvedValue({
+              arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(1024)),
+            }),
+          }),
+          removeEntry: vi.fn(),
+        }),
+      }),
     },
     serviceWorker: {
       register: vi.fn(),
@@ -58,6 +72,41 @@ Object.defineProperty(global, 'navigator', {
   },
   writable: true,
 });
+
+// Mock IndexedDB
+const indexedDBMock = {
+  databases: vi.fn().mockResolvedValue([]),
+  deleteDatabase: vi.fn(),
+  open: vi.fn().mockReturnValue({
+    onsuccess: null,
+    onerror: null,
+    onupgradeneeded: null,
+    result: {
+      createObjectStore: vi.fn().mockReturnValue({
+        createIndex: vi.fn(),
+        add: vi.fn(),
+        put: vi.fn(),
+        get: vi.fn(),
+        delete: vi.fn(),
+        clear: vi.fn(),
+        getAll: vi.fn().mockResolvedValue([]),
+      }),
+      transaction: vi.fn().mockReturnValue({
+        objectStore: vi.fn().mockReturnValue({
+          getAll: vi.fn().mockResolvedValue([]),
+          add: vi.fn(),
+          put: vi.fn(),
+          get: vi.fn(),
+          delete: vi.fn(),
+          clear: vi.fn(),
+        }),
+        done: vi.fn().mockResolvedValue(undefined),
+      }),
+    },
+  }),
+};
+
+Object.defineProperty(global, 'indexedDB', { value: indexedDBMock });
 
 // Mock localStorage
 const localStorageMock = {
