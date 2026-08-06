@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     python3-pip \
     git \
+    git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
@@ -30,8 +31,9 @@ RUN emcmake cmake .. -DCMAKE_BUILD_TYPE=Release && \
 # Clone Blender source (skip LFS since we don't need binary assets for WASM build)
 WORKDIR /build
 ARG BLENDER_BRANCH=blender-v4.2-release
-RUN git config --global filter.lfs.smudge "git-lfs smudge --skip" && \
-    git clone --depth 1 --branch ${BLENDER_BRANCH} --filter=blob:none https://github.com/blender/blender.git src
+ENV GIT_LFS_SKIP_PULL=1
+RUN git lfs install --skip-smudge && \
+    git clone --depth 1 --branch ${BLENDER_BRANCH} https://github.com/blender/blender.git src
 
 # Default build command
 CMD ["/bin/bash"]
