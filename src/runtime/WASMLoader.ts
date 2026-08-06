@@ -224,11 +224,11 @@ class WASMLoader {
       offset += chunk.length;
     }
 
-    // Instantiate the module
+    // Instantiate the module with shared memory for Blender (8GB support)
     const memory = new WebAssembly.Memory({
-      initial: 256, // 256 pages = 16MB
-      maximum: 2048, // 128MB max
-      shared: false,
+      initial: 256,           // 256 pages = 16MB initial
+      maximum: 131072,         // 131072 pages = 8GB maximum
+      shared: true,            // Enable SharedArrayBuffer for threads
     });
     this.memoryBuffer.set(moduleId, memory);
 
