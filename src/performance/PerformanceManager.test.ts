@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PerformanceManager } from './PerformanceManager';
+import { performanceManager } from './PerformanceManager';
 
 describe('PerformanceManager', () => {
-  let manager: PerformanceManager;
-
   beforeEach(() => {
-    manager = new PerformanceManager();
     vi.clearAllMocks();
   });
 
   describe('getMetrics', () => {
     it('should return initial metrics', () => {
-      const metrics = manager.getMetrics();
+      const metrics = performanceManager.getMetrics();
       expect(metrics).toBeDefined();
       expect(typeof metrics.fps).toBe('number');
       expect(typeof metrics.frameTime).toBe('number');
@@ -21,14 +18,14 @@ describe('PerformanceManager', () => {
   describe('onMetricsUpdate', () => {
     it('should return unsubscribe function', () => {
       const callback = vi.fn();
-      const unsubscribe = manager.onMetricsUpdate(callback);
+      const unsubscribe = performanceManager.onMetricsUpdate(callback);
       expect(typeof unsubscribe).toBe('function');
     });
   });
 
   describe('getPresets', () => {
     it('should return all presets', () => {
-      const presets = manager.getPresets();
+      const presets = performanceManager.getPresets();
       expect(presets).toBeDefined();
       expect(presets.low).toBeDefined();
       expect(presets.medium).toBeDefined();
@@ -37,7 +34,7 @@ describe('PerformanceManager', () => {
     });
 
     it('each preset should have required fields', () => {
-      const presets = manager.getPresets();
+      const presets = performanceManager.getPresets();
       for (const preset of Object.values(presets)) {
         expect(preset.graphicsQuality).toBeDefined();
         expect(preset.enableSIMD).toBeDefined();
@@ -49,29 +46,29 @@ describe('PerformanceManager', () => {
 
   describe('autoDetect', () => {
     it('should return a preset based on hardware', async () => {
-      const profile = await manager.autoDetect();
+      const profile = await performanceManager.autoDetect();
       expect(profile).toBeDefined();
-      expect(profile.name).toBeOneOf(['low', 'medium', 'high', 'ultra']);
+      expect(profile.name).toMatch(/^(low|medium|high|ultra)$/);
       expect(profile.settings).toBeDefined();
     });
   });
 
   describe('optimize', () => {
     it('should not throw', async () => {
-      await expect(manager.optimize()).resolves.not.toThrow();
+      await expect(performanceManager.optimize()).resolves.not.toThrow();
     });
   });
 
   describe('requestMemory', () => {
     it('should return boolean', () => {
-      const result = manager.requestMemory(1024);
+      const result = performanceManager.requestMemory(1024);
       expect(typeof result).toBe('boolean');
     });
   });
 
   describe('garbageCollect', () => {
     it('should not throw', () => {
-      expect(() => manager.garbageCollect()).not.toThrow();
+      expect(() => performanceManager.garbageCollect()).not.toThrow();
     });
   });
 });

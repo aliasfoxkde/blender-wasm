@@ -1,31 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AIService } from './AIService';
+import { aiService } from './AIService';
 
 describe('AIService', () => {
-  let service: AIService;
-
   beforeEach(() => {
-    service = new AIService();
     vi.clearAllMocks();
   });
 
   describe('configure', () => {
     it('should set configuration', () => {
-      service.configure({ provider: 'mock' });
+      aiService.configure({ provider: 'mock' });
       // No error means success
     });
 
     it('should merge with existing config', () => {
-      service.configure({ provider: 'mock' });
-      service.configure({ apiKey: 'test-key' });
+      aiService.configure({ provider: 'mock' });
+      aiService.configure({ apiKey: 'test-key' });
       // Should not throw
     });
   });
 
   describe('processCommand', () => {
     it('should return mock response for mock provider', async () => {
-      service.configure({ provider: 'mock' });
-      const response = await service.processCommand({
+      aiService.configure({ provider: 'mock' });
+      const response = await aiService.processCommand({
         id: 'test',
         prompt: 'test command',
       });
@@ -34,8 +31,8 @@ describe('AIService', () => {
     });
 
     it('should return error for unknown provider', async () => {
-      service.configure({ provider: 'unknown' as any });
-      const response = await service.processCommand({
+      aiService.configure({ provider: 'unknown' as any });
+      const response = await aiService.processCommand({
         id: 'test',
         prompt: 'test',
       });
@@ -46,7 +43,7 @@ describe('AIService', () => {
 
   describe('understand', () => {
     it('should create command from prompt', async () => {
-      const command = await service.understand('add a cube');
+      const command = await aiService.understand('add a cube');
       expect(command).toBeDefined();
       expect(command.id).toBeDefined();
       expect(command.prompt).toBe('add a cube');
@@ -55,8 +52,8 @@ describe('AIService', () => {
 
   describe('streamCommand', () => {
     it('should be async generator', async () => {
-      service.configure({ provider: 'mock' });
-      const generator = service.streamCommand({ id: 'test', prompt: 'test' });
+      aiService.configure({ provider: 'mock' });
+      const generator = aiService.streamCommand({ id: 'test', prompt: 'test' });
       expect(generator[Symbol.asyncIterator]).toBeDefined();
     });
   });

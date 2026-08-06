@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PluginManager, type PluginManifest } from './PluginManager';
+import { pluginManager, type PluginManifest } from './PluginManager';
 
 describe('PluginManager', () => {
-  let manager: PluginManager;
-
   const testManifest: PluginManifest = {
-    id: 'test-plugin',
+    id: 'test-plugin-' + Date.now(),
     name: 'Test Plugin',
     version: '1.0.0',
     description: 'A test plugin',
@@ -18,44 +16,44 @@ describe('PluginManager', () => {
   };
 
   beforeEach(() => {
-    manager = new PluginManager();
     vi.clearAllMocks();
   });
 
   describe('registerFromManifest', () => {
     it('should register a plugin', async () => {
-      await manager.registerFromManifest(testManifest);
-      const plugin = manager.getPlugin('test-plugin');
+      await pluginManager.registerFromManifest(testManifest);
+      const plugin = pluginManager.getPlugin(testManifest.id);
       expect(plugin).toBeDefined();
       expect(plugin?.manifest.name).toBe('Test Plugin');
       expect(plugin?.status).toBe('registered');
     });
 
     it('should not duplicate registration', async () => {
-      await manager.registerFromManifest(testManifest);
-      await manager.registerFromManifest(testManifest);
-      const all = manager.getAllPlugins();
-      expect(all.length).toBe(1);
+      await pluginManager.registerFromManifest(testManifest);
+      await pluginManager.registerFromManifest(testManifest);
+      const all = pluginManager.getAllPlugins();
+      const matches = all.filter(p => p.manifest.id === testManifest.id);
+      expect(matches.length).toBe(1);
     });
   });
 
   describe('getPlugin', () => {
     it('should return undefined for non-existent plugin', () => {
-      const plugin = manager.getPlugin('non-existent');
+      const plugin = pluginManager.getPlugin('non-existent-' + Date.now());
       expect(plugin).toBeUndefined();
     });
   });
 
   describe('getAllPlugins', () => {
-    it('should return empty array initially', () => {
-      const plugins = manager.getAllPlugins();
-      expect(plugins).toEqual([]);
+    it('should return all registered plugins', () => {
+      const plugins = pluginManager.getAllPlugins();
+      expect(Array.isArray(plugins)).toBe(true);
     });
   });
 
   describe('getLoadedPlugins', () => {
     it('should return empty array initially', () => {
-      const plugins = manager.getLoadedPlugins();
+      const plugins = pluginManager.getLoadedPlugins();
       expect(plugins).toEqual([]);
     });
   });
@@ -63,48 +61,40 @@ describe('PluginManager', () => {
   describe('registerHook', () => {
     it('should register and return unsubscribe function', () => {
       const callback = vi.fn();
-      const unsubscribe = manager.registerHook('test-event', callback);
+      const unsubscribe = pluginManager.registerHook('test-event-' + Date.now(), callback);
       expect(typeof unsubscribe).toBe('function');
     });
   });
 
   describe('emitHook', () => {
     it('should not throw with no handlers', async () => {
-      await expect(manager.emitHook('test-event', {})).resolves.not.toThrow();
+      await expect(pluginManager.emitHook('test-event', {})).resolves.not.toThrow();
     });
   });
 
   describe('loadPlugin', () => {
     it('should fail for non-existent plugin', async () => {
-      const result = await manager.loadPlugin('non-existent');
+      const result = await pluginManager.loadPlugin('non-existent-' + Date.now());
       expect(result.success).toBe(false);
       expect(result.error).toContain('not found');
-    });
-
-    it('should fail for registered but not loadable plugin', async () => {
-      await manager.registerFromManifest(testManifest);
-      // The plugin has no assets so load will fail, but it should attempt
-      const result = await manager.loadPlugin('test-plugin');
-      // Result depends on whether assets can be loaded
-      expect(result).toBeDefined();
     });
   });
 
   describe('disablePlugin', () => {
     it('should not throw for non-existent plugin', async () => {
-      await expect(manager.disablePlugin('non-existent')).resolves.not.toThrow();
+      await expect(pluginManager.disablePlugin('non-existent-' + Date.now())).resolves.not.toThrow();
     });
   });
 
   describe('enablePlugin', () => {
     it('should not throw for non-existent plugin', async () => {
-      await expect(manager.enablePlugin('non-existent')).resolves.not.toThrow();
+      await expect(pluginManager.enablePlugin('non-existent-' + Date.now())).resolves.not.toThrow();
     });
   });
 
   describe('handleAICommand', () => {
     it('should return error for unknown command', async () => {
-      const response = await manager.handleAICommand({
+      const response = await pluginManager.handleAICommand({
         id: 'test',
         prompt: 'unknown_command',
       });

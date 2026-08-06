@@ -1,10 +1,31 @@
 // Test setup file
 import { vi } from 'vitest';
 
-// Mock global objects
-global.crypto = {
-  randomUUID: () => Math.random().toString(36).substring(2) + Date.now().toString(36),
-} as Crypto;
+// Mock global objects using Object.defineProperty for read-only globals
+Object.defineProperty(global, 'crypto', {
+  value: {
+    randomUUID: () => Math.random().toString(36).substring(2) + Date.now().toString(36),
+    getRandomValues: vi.fn((arr: Uint8Array) => {
+      for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
+      return arr;
+    }),
+    subtle: {
+      digest: vi.fn(),
+      encrypt: vi.fn(),
+      decrypt: vi.fn(),
+      sign: vi.fn(),
+      verify: vi.fn(),
+      deriveBits: vi.fn(),
+      deriveKey: vi.fn(),
+      importKey: vi.fn(),
+      exportKey: vi.fn(),
+      wrapKey: vi.fn(),
+      unwrapKey: vi.fn(),
+    },
+  },
+  writable: true,
+  configurable: true,
+});
 
 // Mock fetch
 global.fetch = vi.fn();

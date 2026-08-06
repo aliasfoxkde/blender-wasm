@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AuthManager } from './AuthManager';
+import { authManager } from './AuthManager';
 
 describe('AuthManager', () => {
-  let auth: AuthManager;
-
   beforeEach(() => {
-    auth = new AuthManager();
     vi.clearAllMocks();
   });
 
   describe('getState', () => {
     it('should return initial guest state', () => {
-      const state = auth.getState();
+      const state = authManager.getState();
       expect(state.mode).toBe('guest');
       expect(state.provider).toBe('anonymous');
       expect(state.isAuthenticated).toBe(false);
@@ -22,10 +19,10 @@ describe('AuthManager', () => {
   describe('onAuthChange', () => {
     it('should call callback on auth change', () => {
       const callback = vi.fn();
-      const unsubscribe = auth.onAuthChange(callback);
+      const unsubscribe = authManager.onAuthChange(callback);
 
       // Trigger auth change
-      auth.continueAsGuest();
+      authManager.continueAsGuest();
 
       expect(callback).toHaveBeenCalled();
 
@@ -35,8 +32,8 @@ describe('AuthManager', () => {
 
   describe('continueAsGuest', () => {
     it('should set guest mode', async () => {
-      await auth.continueAsGuest();
-      const state = auth.getState();
+      await authManager.continueAsGuest();
+      const state = authManager.getState();
       expect(state.mode).toBe('guest');
       expect(state.isAuthenticated).toBe(false);
     });
@@ -44,30 +41,30 @@ describe('AuthManager', () => {
 
   describe('isGuest', () => {
     it('should return true initially', () => {
-      expect(auth.isGuest()).toBe(true);
+      expect(authManager.isGuest()).toBe(true);
     });
 
     it('should return false after sign in', async () => {
-      await auth.continueAsGuest();
-      expect(auth.isGuest()).toBe(true);
+      await authManager.continueAsGuest();
+      expect(authManager.isGuest()).toBe(true);
     });
   });
 
   describe('isLocal', () => {
     it('should return false initially', () => {
-      expect(auth.isLocal()).toBe(false);
+      expect(authManager.isLocal()).toBe(false);
     });
   });
 
   describe('isCloud', () => {
     it('should return false initially', () => {
-      expect(auth.isCloud()).toBe(false);
+      expect(authManager.isCloud()).toBe(false);
     });
   });
 
   describe('getProfile', () => {
     it('should return null initially', () => {
-      expect(auth.getProfile()).toBeNull();
+      expect(authManager.getProfile()).toBeNull();
     });
   });
 });

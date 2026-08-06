@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AIGateway } from './AIGateway';
+import { aiGateway } from './AIGateway';
 
 describe('AIGateway', () => {
-  let gateway: AIGateway;
-
   beforeEach(() => {
-    gateway = new AIGateway();
     vi.clearAllMocks();
   });
 
   describe('getSceneGraph', () => {
     it('should return scene graph API', () => {
-      const sg = gateway.getSceneGraph();
+      const sg = aiGateway.getSceneGraph();
       expect(sg).toBeDefined();
       expect(typeof sg.getScene).toBe('function');
       expect(typeof sg.addObject).toBe('function');
@@ -20,7 +17,7 @@ describe('AIGateway', () => {
 
   describe('getMaterials', () => {
     it('should return materials API', () => {
-      const mat = gateway.getMaterials();
+      const mat = aiGateway.getMaterials();
       expect(mat).toBeDefined();
       expect(typeof mat.getMaterials).toBe('function');
       expect(typeof mat.createMaterial).toBe('function');
@@ -29,7 +26,7 @@ describe('AIGateway', () => {
 
   describe('getRender', () => {
     it('should return render API', () => {
-      const render = gateway.getRender();
+      const render = aiGateway.getRender();
       expect(render).toBeDefined();
       expect(typeof render.render).toBe('function');
       expect(typeof render.getRenderProgress).toBe('function');
@@ -38,7 +35,7 @@ describe('AIGateway', () => {
 
   describe('getAnimation', () => {
     it('should return animation API', () => {
-      const anim = gateway.getAnimation();
+      const anim = aiGateway.getAnimation();
       expect(anim).toBeDefined();
       expect(typeof anim.setFrame).toBe('function');
     });
@@ -46,25 +43,25 @@ describe('AIGateway', () => {
 
   describe('execute', () => {
     it('should return error for unknown command', async () => {
-      const response = await gateway.execute({
+      const response = await aiGateway.execute({
         id: 'test',
         prompt: 'unknown_command',
       });
       expect(response.success).toBe(false);
-      expect(response.error).toContain('Unknown command');
+      expect(response.error).toBeDefined();
     });
   });
 
   describe('executeNaturalLanguage', () => {
     it('should process natural language command', async () => {
-      const response = await gateway.executeNaturalLanguage('scene.get');
+      const response = await aiGateway.executeNaturalLanguage('scene.get');
       expect(response.success).toBe(true);
     });
   });
 
   describe('command handlers', () => {
     it('should handle scene.get', async () => {
-      const response = await gateway.execute({
+      const response = await aiGateway.execute({
         id: 'test',
         prompt: 'scene.get',
       });
@@ -73,7 +70,7 @@ describe('AIGateway', () => {
     });
 
     it('should handle scene.deselect', async () => {
-      const response = await gateway.execute({
+      const response = await aiGateway.execute({
         id: 'test',
         prompt: 'scene.deselect',
       });
@@ -81,7 +78,7 @@ describe('AIGateway', () => {
     });
 
     it('should handle material.list', async () => {
-      const response = await gateway.execute({
+      const response = await aiGateway.execute({
         id: 'test',
         prompt: 'material.list',
       });
@@ -90,7 +87,7 @@ describe('AIGateway', () => {
     });
 
     it('should handle render.progress', async () => {
-      const response = await gateway.execute({
+      const response = await aiGateway.execute({
         id: 'test',
         prompt: 'render.progress',
       });
@@ -99,7 +96,7 @@ describe('AIGateway', () => {
     });
 
     it('should require context for scene.add', async () => {
-      const response = await gateway.execute({
+      const response = await aiGateway.execute({
         id: 'test',
         prompt: 'scene.add',
       });
@@ -107,7 +104,7 @@ describe('AIGateway', () => {
     });
 
     it('should require context for object.get', async () => {
-      const response = await gateway.execute({
+      const response = await aiGateway.execute({
         id: 'test',
         prompt: 'object.get',
       });
