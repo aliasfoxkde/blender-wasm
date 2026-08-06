@@ -1,0 +1,14 @@
+services:
+  blender-wasm-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: blender-wasm-build:latest
+    container_name: blender-wasm-build
+    volumes:
+      - ../../:/blender-wasm
+      - blender-cache:/build
+    working_dir: /build
+
+volumes:
+  blender-cache:
