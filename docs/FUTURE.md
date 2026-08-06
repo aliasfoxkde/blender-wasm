@@ -23,4 +23,4 @@
 - Can we reach "perceived" native performance in the browser?
 
 Notes: 
-- Faster or slower is not the metric, the user experience and perceived performance is.
+- Faster or slower is not the metric, the user experience and perceived performance is. The portable nature of the app across multiple devices (with login and simple DB storage), ease of setup/installation (basically one click), configuration (once and it also learns), reliability (always up to date, validated, etc.), etc. is...
