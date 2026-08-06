@@ -55,13 +55,14 @@ export class DownloadManager {
     task.status = 'downloading';
 
     try {
+      const headers: Record<string, string> = {};
+      if (task.downloadedBytes > 0) {
+        headers['Range'] = `bytes=${task.downloadedBytes}-`;
+      }
+
       const response = await fetch(task.url, {
         signal: abortController.signal,
-        headers: {
-          Range: task.downloadedBytes > 0
-            ? `bytes=${task.downloadedBytes}-`
-            : undefined,
-        } as any,
+        headers,
       });
 
       if (!response.ok && response.status !== 206) {

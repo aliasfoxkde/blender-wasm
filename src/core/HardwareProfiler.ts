@@ -126,8 +126,9 @@ export class HardwareProfiler {
   }
 
   private async detectMemory(): Promise<CapabilityProfile['memory']> {
-    // @ts-ignore - deviceMemory is not in TypeScript lib
-    const ramGB = navigator.deviceMemory || 4;
+    // navigator.deviceMemory is non-standard but widely supported
+    const deviceMemory = (navigator as unknown as { deviceMemory?: number }).deviceMemory;
+    const ramGB = deviceMemory || 4;
     const webglMemoryMB = 512; // Conservative estimate
 
     return { ramGB, webglMemoryMB };
@@ -195,8 +196,9 @@ export class HardwareProfiler {
 
   private async detectNetwork(): Promise<CapabilityProfile['network']> {
     const online = navigator.onLine;
-    // @ts-ignore - effectiveType is not always typed
-    const effectiveType = navigator.connection?.effectiveType || 'unknown';
+    // navigator.connection is non-standard but widely supported
+    const connection = navigator as unknown as { connection?: { effectiveType?: string } };
+    const effectiveType = connection.connection?.effectiveType || 'unknown';
 
     return { online, effectiveType };
   }

@@ -173,8 +173,9 @@ class PerformanceManager {
     };
 
     const detectMemory = () => {
-      // @ts-ignore
-      return navigator.deviceMemory || 4;
+      // navigator.deviceMemory is non-standard but widely supported
+      const deviceMemory = (navigator as unknown as { deviceMemory?: number }).deviceMemory;
+      return deviceMemory || 4;
     };
 
     const cores = detectCPU();

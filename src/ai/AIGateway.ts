@@ -62,6 +62,51 @@ export interface AICommand {
   context?: Record<string, unknown>;
 }
 
+// Context type definitions for type-safe access
+export interface SceneAddContext {
+  type: SceneObject['type'];
+  properties?: Partial<SceneObject>;
+}
+
+export interface SceneSelectContext {
+  id: string;
+}
+
+export interface ObjectGetContext {
+  id: string;
+}
+
+export interface ObjectModifyContext {
+  id: string;
+  changes: Partial<SceneObject>;
+}
+
+export interface ObjectDeleteContext {
+  id: string;
+}
+
+export interface ObjectDuplicateContext {
+  id: string;
+}
+
+export interface MaterialCreateContext {
+  name: string;
+}
+
+export interface RenderStartContext {
+  viewportOnly?: boolean;
+}
+
+export interface AnimationFrameContext {
+  frame: number;
+}
+
+export interface AnimationKeyframeContext {
+  objectId: string;
+  frame: number;
+  properties: string[];
+}
+
 export interface AIResponse {
   success: boolean;
   result?: unknown;
@@ -197,14 +242,16 @@ class AIGateway {
     }));
 
     this.registerHandler('scene.add', async (cmd) => {
-      const { type, properties } = cmd.context as any;
-      const obj = await this.sceneGraph.addObject(type, properties);
+      const ctx = cmd.context as SceneAddContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const obj = await this.sceneGraph.addObject(ctx.type, ctx.properties);
       return { success: !!obj, result: obj };
     });
 
     this.registerHandler('scene.select', async (cmd) => {
-      const { id } = cmd.context as any;
-      const success = await this.sceneGraph.selectObject(id);
+      const ctx = cmd.context as SceneSelectContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const success = await this.sceneGraph.selectObject(ctx.id);
       return { success };
     });
 
@@ -215,26 +262,30 @@ class AIGateway {
 
     // Object operations
     this.registerHandler('object.get', async (cmd) => {
-      const { id } = cmd.context as any;
-      const obj = await this.sceneGraph.getObject(id);
+      const ctx = cmd.context as ObjectGetContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const obj = await this.sceneGraph.getObject(ctx.id);
       return { success: !!obj, result: obj };
     });
 
     this.registerHandler('object.modify', async (cmd) => {
-      const { id, changes } = cmd.context as any;
-      const success = await this.sceneGraph.modifyObject(id, changes);
+      const ctx = cmd.context as ObjectModifyContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const success = await this.sceneGraph.modifyObject(ctx.id, ctx.changes);
       return { success };
     });
 
     this.registerHandler('object.delete', async (cmd) => {
-      const { id } = cmd.context as any;
-      const success = await this.sceneGraph.removeObject(id);
+      const ctx = cmd.context as ObjectDeleteContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const success = await this.sceneGraph.removeObject(ctx.id);
       return { success };
     });
 
     this.registerHandler('object.duplicate', async (cmd) => {
-      const { id } = cmd.context as any;
-      const obj = await this.sceneGraph.duplicateObject(id);
+      const ctx = cmd.context as ObjectDuplicateContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const obj = await this.sceneGraph.duplicateObject(ctx.id);
       return { success: !!obj, result: obj };
     });
 
@@ -245,14 +296,16 @@ class AIGateway {
     }));
 
     this.registerHandler('material.create', async (cmd) => {
-      const { name } = cmd.context as any;
-      const mat = await this.materials.createMaterial(name);
+      const ctx = cmd.context as MaterialCreateContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const mat = await this.materials.createMaterial(ctx.name);
       return { success: !!mat, result: mat };
     });
 
     // Render operations
     this.registerHandler('render.start', async (cmd) => {
-      const { viewportOnly } = cmd.context as any;
+      const ctx = cmd.context as RenderStartContext | undefined;
+      const viewportOnly = ctx?.viewportOnly ?? false;
       const result = await this.render.render(viewportOnly);
       return { success: !!result, result: result ? 'rendered' : null };
     });
@@ -264,14 +317,16 @@ class AIGateway {
 
     // Animation operations
     this.registerHandler('animation.frame', async (cmd) => {
-      const { frame } = cmd.context as any;
-      await this.animation.setFrame(frame);
+      const ctx = cmd.context as AnimationFrameContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      await this.animation.setFrame(ctx.frame);
       return { success: true };
     });
 
     this.registerHandler('animation.keyframe', async (cmd) => {
-      const { objectId, frame, properties } = cmd.context as any;
-      const success = await this.animation.setKeyframe(objectId, frame, properties);
+      const ctx = cmd.context as AnimationKeyframeContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const success = await this.animation.setKeyframe(ctx.objectId, ctx.frame, ctx.properties);
       return { success };
     });
   }

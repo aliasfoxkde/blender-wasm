@@ -7,8 +7,12 @@ export interface ServiceWorkerRegistration {
   unregister(): Promise<boolean>;
 }
 
+interface InternalRegistration extends ServiceWorkerRegistration {
+  active?: ServiceWorker;
+}
+
 class ServiceWorkerManager {
-  private registration: ServiceWorkerRegistration | null = null;
+  private registration: InternalRegistration | null = null;
 
   async register(): Promise<void> {
     if (!('serviceWorker' in navigator)) {
@@ -19,11 +23,11 @@ class ServiceWorkerManager {
     try {
       this.registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
-      });
+      }) as InternalRegistration;
 
       // Handle updates
-      this.registration.addEventListener('updatefound', () => {
-        const newWorker = (this.registration as any)?.active;
+      this.registration.addEventListener?.('updatefound', () => {
+        const newWorker = this.registration?.active;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
@@ -40,7 +44,7 @@ class ServiceWorkerManager {
 
   async unregister(): Promise<void> {
     if (this.registration) {
-      await (this.registration as any)?.unregister();
+      await this.registration.unregister();
       this.registration = null;
     }
   }
