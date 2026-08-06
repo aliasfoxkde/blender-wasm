@@ -27,10 +27,11 @@ WORKDIR /openimageio-stub/build
 RUN emcmake cmake .. -DCMAKE_BUILD_TYPE=Release && \
     emmake make -j$(nproc)
 
-# Clone Blender source
+# Clone Blender source (skip LFS since we don't need binary assets for WASM build)
 WORKDIR /build
 ARG BLENDER_BRANCH=blender-v4.2-release
-RUN git clone --depth 1 --branch ${BLENDER_BRANCH} https://github.com/blender/blender.git src
+RUN git config --global filter.lfs.smudge "git-lfs smudge --skip" && \
+    git clone --depth 1 --branch ${BLENDER_BRANCH} --filter=blob:none https://github.com/blender/blender.git src
 
 # Default build command
 CMD ["/bin/bash"]
