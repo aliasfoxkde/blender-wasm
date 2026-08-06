@@ -15,8 +15,12 @@
   - [ ] "Learn" the users behavior and enable just the features they use, etc.
   - [ ] Could a smarter search algorithm, multithreading/tasking, etc. be implemented?
 - [ ] Implement an Unreal-like asset marketplace
+- [ ] Script automation with official and community presets, etc.
 
 ## Benchmarking
 
 ## Q & A:
 - Can we reach "perceived" native performance in the browser?
+
+Notes: 
+- Faster or slower is not the metric, the user experience and perceived performance is.
