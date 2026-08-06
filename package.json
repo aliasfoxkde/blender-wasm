@@ -18,23 +18,24 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "solid-js": "^1.9.0",
-    "idb": "^8.0.0"
+    "idb": "^8.0.0",
+    "solid-js": "^1.9.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.0",
     "@vitest/ui": "^2.0.0",
+    "eslint": "^9.0.0",
     "happy-dom": "^15.0.0",
     "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
     "vite": "^6.0.0",
-    "vite-plugin-solid": "^2.10.0",
     "vite-plugin-pwa": "^0.21.0",
+    "vite-plugin-solid": "^2.10.0",
     "vitest": "^2.0.0",
-    "workbox-window": "^7.0.0",
-    "eslint": "^9.0.0",
-    "@eslint/js": "^9.0.0",
-    "typescript-eslint": "^8.0.0"
+    "workbox-window": "^7.0.0"
   },
   "engines": {
     "node": ">=20.0.0",
