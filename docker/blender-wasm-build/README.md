@@ -2,117 +2,131 @@
 
 This directory contains the Docker-based build environment for cross-compiling Blender to WebAssembly.
 
-## Why Docker?
+## Current Status
 
-Blender's build system has complex dependencies that are difficult to isolate on arbitrary host systems. The Docker environment provides:
+⚠️ **Note**: Blender's CMake build system has complex native library dependencies that make pure cross-compilation challenging. The Docker environment is correctly configured but may require additional setup for full builds.
 
-- **Complete isolation**: No interference from host system libraries
-- **Reproducible builds**: Same environment every time
-- **Proper cross-compilation**: Emscripten toolchain properly configured
-- **Consistent results**: Builds work identically across machines
+## What Works
+
+✅ **Docker Image Built Successfully**
+- Emscripten SDK 3.1.70
+- OpenImageIO stub library with trivially copyable `ustring`
+- Blender source code (v4.2-release)
+- Git LFS properly handled
+
+⚠️ **CMake Configuration**
+- Requires library stubs or Emscripten ports for native dependencies
+- Full build may need additional CMake patches
 
 ## Quick Start
 
 ### Build the Docker Image
 
 ```bash
-cd /nas/Temp/repos/blender-wasm/docker/blender-wasm-build
+cd docker/blender-wasm-build
 docker compose build
 ```
 
-### Run Interactive Build
+### Run Interactive Shell
 
 ```bash
 docker compose run --rm blender-wasm-build bash
 ```
 
+### Test CMake Configuration
+
 Inside the container:
 ```bash
-./build.sh
+source /emsdk/emsdk_env.sh
+mkdir -p build && cd build
+emcmake cmake /build/src -G Ninja \
+    -DWITH_OPENSIMAGEIO=ON \
+    -DOPENIMAGEIO_ROOT=/openimageio-stub \
+    -DWITH_CYCLES=OFF \
+    -DWITH_GHOST_X11=OFF \
+    -DWITH_GHOST_WAYLAND=OFF \
+    -DWITH_GHOST_SDL=OFF \
+    -DWITH_PYTHON=OFF \
+    -DWITH_LIBMV=OFF
 ```
 
-### Automated Build
+## The Challenge: Native Library Dependencies
 
+Blender's CMake build system (`build_files/cmake/platform/platform_unix.cmake`) requires native libraries during configuration:
+
+- JPEG, PNG, ZLIB (image I/O)
+- Freetype (font rendering)
+- Various other codecs
+
+When cross-compiling, CMake finds the **host** (x86_64) libraries instead of the **target** (wasm32) libraries.
+
+### Solutions
+
+#### 1. Emscripten Ports (Recommended)
+Use Emscripten's pre-built WASM libraries:
 ```bash
-docker compose run --rm blender-wasm-build ./build.sh
+emcmake cmake ... -sUSE_LIBJPEG=1 -sUSE_LIBPNG=1 -sUSE_ZLIB=1
 ```
 
-## Build Output
+#### 2. Stub FindXXX.cmake Modules
+Provide empty stub modules that don't actually link:
+```cmake
+# FindJPEG.cmake
+set(JPEG_FOUND 1)
+set(JPEG_LIBRARY "")
+set(JPEG_INCLUDE_DIR "")
+```
 
-After a successful build, WASM binaries are located at:
-- `/blender-build/build/lib/` - Static libraries
-- `/blender-build/bin/` - Executable targets
+#### 3. Native Build Environment
+For complete builds, use a native Linux x86_64 environment and then cross-compile components.
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BUILD_TYPE` | `Release` | CMake build type (Debug/Release) |
-| `BUILD_DIR` | `/blender-build/build` | Build output directory |
-| `BLENDER_SRC` | `/blender-build/src` | Blender source directory |
-| `OPENIMAGEIO_ROOT` | `/openimageio-stub` | OpenImageIO stub location |
+| `BUILD_TYPE` | `Release` | CMake build type |
+| `BLENDER_BRANCH` | `blender-v4.2-release` | Blender Git branch |
 
-## Build Features
+## Files
 
-The WASM build includes:
-- ✅ OpenImageIO support (with stub library)
-- ✅ Core Blender functionality
-- ✅ GPU shader support
-- ✅ File I/O (limited)
-- ❌ Python scripting (disabled for smaller build)
-- ❌ Cycles renderer (requires Embree)
-- ❌ X11/Wayland GUI (headless WASM)
-
-## Memory Configuration
-
-WebAssembly builds use Memory64 for 8GB+ memory support. Configure in your application:
-
-```javascript
-const memory = new WebAssembly.Memory({
-  initial: 256,  // 16MB initial
-  maximum: 32768, // 2GB maximum (adjust for your needs)
-  shared: false,
-});
 ```
+docker/blender-wasm-build/
+├── Dockerfile              # Multi-stage build image
+├── docker-compose.yml      # Container config
+├── build.sh              # Build script
+├── OpenImageIO-stub/     # OpenImageIO compatibility stub
+│   ├── include/         # Header files
+│   ├── build/            # Pre-built stub library
+│   └── CMakeLists.txt
+└── README.md
+```
+
+## OpenImageIO Stub
+
+We provide a minimal OpenImageIO stub because:
+- Full OpenImageIO is complex to compile for WASM
+- Blender only needs `ustring` class and basic image format signatures
+- Our stub uses pointer-based string interning for thread safety with `std::atomic<UString>`
+
+## Next Steps
+
+1. **Test CMake configuration** - Works but may need library stubs
+2. **Complete the build** - Requires either Emscripten ports or CMake patches
+3. **Integrate with blender-wasm** - Copy WASM output to `public/wasm/`
 
 ## Troubleshooting
 
-### Out of Memory During Build
+### "Could NOT find JPEG"
+Native library not found. Use Emscripten ports or stub modules.
 
-Reduce parallelism:
-```bash
-docker compose run --rm -e MAKEFLAGS="-j1" blender-wasm-build
-```
+### "bits/libc-header-start.h not found"
+Host/system headers mixing with Emscripten sysroot. Use Docker.
 
-### Build Hangs
-
-Enable debug output:
-```bash
-docker compose run --rm -e EMCC_DEBUG=1 blender-wasm-build ./build.sh
-```
-
-### Cache Issues
-
-Clear Docker cache and rebuild:
-```bash
-docker compose down -v
-docker compose build --no-cache
-```
-
-## Building Without Docker (Advanced)
-
-If you must build on the host system, you need:
-
-1. Emscripten SDK 3.1.70+
-2. CMake 3.20+
-3. Ninja build
-4. Python 3.11+
-5. All Blender dependencies (see Blender docs)
-
-The cross-compilation is complex - prefer Docker.
+### Build hangs
+Reduce parallelism: `ninja -j2` inside container.
 
 ## See Also
 
-- [Blender Developer Documentation](https://wiki.blender.org/)
-- [Emscripten Wiki](https://emscripten.org/)
-- [blender-wasm Project Documentation](../../docs/)
+- [Build Documentation](../../docs/BUILD.md)
+- [Blender Developer Docs](https://wiki.blender.org/)
+- [Emscripten Ports](https://emscripten.org/docs/compiling/Building-Projects.html#using-ports)

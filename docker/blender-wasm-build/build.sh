@@ -1,6 +1,15 @@
 #!/bin/bash
 # Blender WASM Build Script
 # This script builds Blender for WebAssembly inside the Docker container
+#
+# NOTE: Blender's CMake build system has complex native library dependencies.
+# Full cross-compilation requires either:
+# 1. Using Emscripten ports for all dependencies
+# 2. Patching Blender's CMake files
+# 3. Using a native Linux x86_64 build environment
+#
+# This script demonstrates the proper setup but may require additional
+# configuration for complete builds.
 
 set -e
 
@@ -9,8 +18,8 @@ source /emsdk/emsdk_env.sh
 
 # Build configuration
 BUILD_TYPE="${BUILD_TYPE:-Release}"
-BUILD_DIR="${BUILD_DIR:-/blender-build/build}"
-BLENDER_SRC="${BLENDER_SRC:-/blender-build/src}"
+BUILD_DIR="${BUILD_DIR:-/build/build}"
+BLENDER_SRC="${BLENDER_SRC:-/build/src}"
 OPENIMAGEIO_ROOT="${OPENIMAGEIO_ROOT:-/openimageio-stub}"
 
 echo "=========================================="
@@ -28,7 +37,7 @@ cd "$BUILD_DIR"
 
 # Configure CMake
 # Key options for WASM build:
-# - WITH_OPENSIMAGEIO=ON: Include OpenImageIO support
+# - WITH_OPENSIMAGEIO=ON: Include OpenImageIO support (uses our stub)
 # - WITH_CYCLES=OFF: Disable Cycles renderer (requires Embree)
 # - WITH_GHOST_X11=OFF: Disable X11 windowing
 # - WITH_GHOST_WAYLAND=OFF: Disable Wayland windowing
@@ -38,10 +47,20 @@ cd "$BUILD_DIR"
 # - WITH_DOCUMENTATION=OFF: Don't build docs
 # - WITH_INSTALL=OFF: Skip installation step
 # - WITH_TESTS=OFF: Skip test building
+# - WITH_LIBS_PRECOMPILED=OFF: Don't use precompiled libraries
+#
+# IMPORTANT: For native library dependencies, Blender's CMake will try to find
+# host libraries. For proper WASM builds, you may need to:
+# 1. Use Emscripten ports: emcmake cmake ... -DEMCC_USE_PORT=libjpeg
+# 2. Or provide stub libraries for CMake find modules
+
+# Check for Emscripten ports (alternative approach)
+# These would be passed as -sUSE_LIBJPEG=1 etc. at link time
 
 emcmake cmake "$BLENDER_SRC" \
     -G Ninja \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+    -DCMAKE_SYSROOT="/emsdk/upstream/emscripten/cache/sysroot" \
     -DWITH_OPENSIMAGEIO=ON \
     -DOPENIMAGEIO_ROOT="$OPENIMAGEIO_ROOT" \
     -DWITH_CYCLES=OFF \
@@ -58,13 +77,16 @@ emcmake cmake "$BLENDER_SRC" \
     -DWITH_JACK=OFF \
     -DWITH_PULSEAUDIO=OFF \
     -DWITH_PIPEWIRE=OFF \
-    -DWITH_GHOST_NATIVE=OFF
+    -DWITH_LIBS_PRECOMPILED=OFF \
+    -DWITH_VULKAN=OFF
 
-# Build with all available cores
-ninja -j$(nproc)
-
-echo "=========================================="
-echo "Build complete!"
-echo "=========================================="
-echo "Output files:"
-find "$BUILD_DIR" -name "*.wasm" -o -name "*.js" 2>/dev/null | head -20
+echo "CMake configuration complete."
+echo ""
+echo "NOTE: If CMake configuration failed due to missing libraries,"
+echo "you may need to either:"
+echo "1. Install Emscripten ports (emcc --use-port=libjpeg, etc.)"
+echo "2. Provide stub FindXXX.cmake modules"
+echo "3. Use a native Linux build environment"
+echo ""
+echo "To build with Emscripten ports, add at link time:"
+echo "  -sUSE_LIBJPEG=1 -sUSE_LIBPNG=1 -sUSE_ZLIB=1"
