@@ -16,11 +16,18 @@
   - [ ] Could a smarter search algorithm, multithreading/tasking, etc. be implemented?
 - [ ] Implement an Unreal-like asset marketplace
 - [ ] Script automation with official and community presets, etc.
+- [ ] Create a feature rich video library for using this application, etc.
+  - [ ] MVP could focus on things that are different for web (login, setup, change version, etc.)
+- [ ] Add idle optimizations that lower resource usage when rendering is not needed, such 
+      as running background process, API headless operations, and so on?
+- [ ] Optimize caching data locally for rendering, processing, metadata, preview images, etc.
 
 ## Benchmarking
 
 ## Q & A:
 - Can we reach "perceived" native performance in the browser?
+- Can we implement something similar to Unity does with the use of AI (to build assets, interact with Unity through the CLI, etc.)? This requires extensive research and planning.
 
 Notes: 
 - Faster or slower is not the metric, the user experience and perceived performance is. The portable nature of the app across multiple devices (with login and simple DB storage), ease of setup/installation (basically one click), configuration (once and it also learns), reliability (always up to date, validated, etc.), etc. is...
+- We need a consistant way/script that pulls the latest blender version and compiles it for the web, ensures feature parity, and integrates easily with our system reliability. But we should also maintain a drop down menu that can switch versions on the fly for the user (basically just a prior Cloudflare deployment, so it will already be available).
