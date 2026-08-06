@@ -8,11 +8,13 @@
 - [ ] Get test, code, and documentation coverage to over 99%
   - [ ] Initially just for our code but then for Blender code itself.
 - [ ] Create API Backend observability, configuration, and interactive documentation dashboard
+  - [ ] Include logging, performance metrics, monitoring, authentication management, and etc.
 - [ ] Integrate Alibaba Page Agent (or custom, etc.) to control the GUI
       See: https://github.com/alibaba/page-agent
 - [ ] Do aggressive SIMD optimizations, smart routing, and lazy loading (only data used)
   - [ ] "Learn" the users behavior and enable just the features they use, etc.
   - [ ] Could a smarter search algorithm, multithreading/tasking, etc. be implemented?
+- [ ] Implement an Unreal-like asset marketplace
 
 ## Benchmarking
 
