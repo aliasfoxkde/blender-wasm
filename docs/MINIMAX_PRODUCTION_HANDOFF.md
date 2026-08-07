@@ -5,9 +5,12 @@
 
 ## Read This First
 
-This document is the current handoff source of truth. Older docs may describe
-the pre-artifact state where no public Blender WASM artifact existed. That is no
-longer current.
+This document has been superseded for post-`bf_blenlib` work. Continue from
+`docs/MINIMAX_NEXT_HANDOFF_2026-08-07.md` and
+`docs/build-notes/014-host-tools-blenlib-success.md`.
+
+Older docs may describe the pre-artifact state where no public Blender WASM
+artifact existed. That is no longer current.
 
 Current validated baseline:
 

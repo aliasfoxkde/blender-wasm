@@ -10,6 +10,9 @@
 #   build.sh build            # Run configure + Ninja build
 #   build.sh minimal          # Build public minimal Blender-derived WASM artifact
 #   build.sh validate-source  # Compile/link/run a minimal real Blender WASM proof
+#   build.sh host-tools       # Build native Blender generator tools
+#   build.sh patch-host-tools # Patch configured wasm Ninja build to use native tools
+#   build.sh blenlib          # Build first DNA-dependent wasm library using native tools
 
 set -euo pipefail
 
@@ -26,6 +29,10 @@ ARTIFACTS_DIR="${ARTIFACTS_DIR:-/artifacts}"
 EMSCRIPTEN_SYSROOT="${EMSCRIPTEN_SYSROOT:-/emsdk/upstream/emscripten/cache/sysroot}"
 EMSCRIPTEN_LIB_DIR="$EMSCRIPTEN_SYSROOT/lib/wasm32-emscripten"
 BLENDER_WASM_PUBLIC_DIR="${BLENDER_WASM_PUBLIC_DIR:-/blender-wasm/public/wasm/blender}"
+HOST_TOOLS_DIR="${HOST_TOOLS_DIR:-/build/host-tools}"
+WASM_SHIM_DIR="${WASM_SHIM_DIR:-/blender-wasm/docker/blender-wasm-build/wasm-shims}"
+WASM_COMMON_FLAGS="${WASM_COMMON_FLAGS:--sUSE_ZLIB=1 -DUSE_STATFS_STATVFS -include sys/statvfs.h -I${WASM_SHIM_DIR}}"
+WASM_LINKER_FLAGS="${WASM_LINKER_FLAGS:--sUSE_ZLIB=1}"
 
 MODE="${1:-build}"
 
@@ -38,6 +45,8 @@ echo "Blender Src: $BLENDER_SRC"
 echo "OpenImageIO: $OPENIMAGEIO_ROOT"
 echo "Stub Modules: $STUB_DIR"
 echo "Artifacts: $ARTIFACTS_DIR"
+echo "Host Tools: $HOST_TOOLS_DIR"
+echo "WASM Shims: $WASM_SHIM_DIR"
 echo "=========================================="
 
 # Blender's Unix CMake platform may add -lutil for build tools such as makesdna.
@@ -58,6 +67,9 @@ configure_cmake() {
         -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
         -DCMAKE_MODULE_PATH="$STUB_DIR;${CMAKE_MODULE_PATH:-}" \
         -DCMAKE_SYSROOT="$EMSCRIPTEN_SYSROOT" \
+        -DCMAKE_C_FLAGS="${WASM_COMMON_FLAGS} ${CMAKE_C_FLAGS:-}" \
+        -DCMAKE_CXX_FLAGS="${WASM_COMMON_FLAGS} ${CMAKE_CXX_FLAGS:-}" \
+        -DCMAKE_EXE_LINKER_FLAGS="${WASM_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS:-}" \
         -DWITH_OPENIMAGEIO=ON \
         -DOPENIMAGEIO_ROOT="$OPENIMAGEIO_ROOT" \
         -DWITH_CYCLES=OFF \
@@ -79,6 +91,47 @@ configure_cmake() {
         -DWITH_GHOST_NATIVE=OFF
 }
 
+host_tool_cmake_flags() {
+    cat <<'EOF'
+-DCMAKE_BUILD_TYPE=Release
+-DCMAKE_MODULE_PATH=/cmake-stubs
+-DWITH_OPENIMAGEIO=OFF
+-DWITH_CYCLES=OFF
+-DWITH_CYCLES_EMBREE=OFF
+-DWITH_CYCLES_OSL=OFF
+-DWITH_GHOST_X11=OFF
+-DWITH_GHOST_WAYLAND=OFF
+-DWITH_GHOST_SDL=OFF
+-DWITH_PYTHON=OFF
+-DWITH_LIBMV=OFF
+-DWITH_DOCUMENTATION=OFF
+-DWITH_INSTALL=OFF
+-DWITH_TESTS=OFF
+-DWITH_JACK=OFF
+-DWITH_PULSEAUDIO=OFF
+-DWITH_PIPEWIRE=OFF
+-DWITH_LIBS_PRECOMPILED=OFF
+-DWITH_VULKAN=OFF
+-DWITH_GHOST_NATIVE=OFF
+-DWITH_CODEC_FFMPEG=OFF
+-DWITH_IMAGE_OPENJPEG=OFF
+-DWITH_IMAGE_TIFF=OFF
+-DWITH_IMAGE_WEBP=OFF
+-DWITH_OPENAL=OFF
+-DWITH_AUDASPACE=OFF
+-DWITH_OPENCOLORIO=OFF
+-DWITH_OPENEXR=OFF
+-DWITH_OPENVDB=OFF
+-DWITH_ALEMBIC=OFF
+-DWITH_USD=OFF
+-DWITH_COLLADA=OFF
+-DWITH_FREESTYLE=OFF
+-DWITH_MOD_FLUID=OFF
+-DWITH_BULLET=OFF
+-DWITH_BOOST=OFF
+EOF
+}
+
 ensure_configured() {
     mkdir -p "$BUILD_DIR"
     cd "$BUILD_DIR"
@@ -90,6 +143,85 @@ ensure_configured() {
 
     echo "Running CMake configure..."
     configure_cmake
+}
+
+build_host_tools() {
+    mkdir -p "$HOST_TOOLS_DIR" "$ARTIFACTS_DIR/logs"
+    cd "$HOST_TOOLS_DIR"
+
+    echo ""
+    echo "=========================================="
+    echo "Configuring native Blender host tools..."
+    echo "=========================================="
+
+    # Use the host compiler, not emcmake. These tools run during the build.
+    cmake "$BLENDER_SRC" -G Ninja $(host_tool_cmake_flags) \
+        2>&1 | tee "$ARTIFACTS_DIR/logs/host-tools-configure.log"
+
+    echo ""
+    echo "=========================================="
+    echo "Building native makesdna and datatoc..."
+    echo "=========================================="
+    ninja -v makesdna datatoc \
+        2>&1 | tee "$ARTIFACTS_DIR/logs/host-tools-build.log"
+
+    test -x "$HOST_TOOLS_DIR/bin/makesdna"
+    test -x "$HOST_TOOLS_DIR/bin/datatoc"
+
+    echo ""
+    echo "Native host tools:"
+    ls -lh "$HOST_TOOLS_DIR/bin/makesdna" "$HOST_TOOLS_DIR/bin/datatoc"
+}
+
+patch_wasm_host_tools() {
+    ensure_configured
+
+    test -x "$HOST_TOOLS_DIR/bin/makesdna"
+    test -x "$HOST_TOOLS_DIR/bin/datatoc"
+    test -f "$BUILD_DIR/build.ninja"
+
+    echo ""
+    echo "=========================================="
+    echo "Patching wasm Ninja build to use native host tools..."
+    echo "=========================================="
+
+    perl -0pi -e \
+        "s#${BUILD_DIR}/bin/makesdna\\.js#${HOST_TOOLS_DIR}/bin/makesdna#g; s#${BUILD_DIR}/bin/datatoc\\.js#${HOST_TOOLS_DIR}/bin/datatoc#g" \
+        "$BUILD_DIR/build.ninja"
+
+    # Native makesdna can generate dna.c for the wasm build, but the generated
+    # dna_verify.c contains static assertions for the ABI that ran makesdna
+    # (Linux x86_64 here). Those assertions do not match wasm32 pointer layout.
+    # Keep the real generated DNA data, but make the verifier a no-op for this
+    # cross-build so bf_dna can compile for the target ABI.
+    perl -0pi -e \
+        "s#(${HOST_TOOLS_DIR}/bin/makesdna ${BUILD_DIR}/source/blender/makesdna/intern/dna\\.c ${BUILD_DIR}/source/blender/makesdna/intern/dna_type_offsets\\.h ${BUILD_DIR}/source/blender/makesdna/intern/dna_verify\\.c ${BLENDER_SRC}/source/blender/makesdna/)#\$1 \&\& printf '/\\* wasm cross-build: dna_verify.c is host-ABI-specific and intentionally disabled. \\*/\\\\n' > ${BUILD_DIR}/source/blender/makesdna/intern/dna_verify.c#g" \
+        "$BUILD_DIR/build.ninja"
+
+    echo "Patched references:"
+    grep -n "${HOST_TOOLS_DIR}/bin/makesdna\\|${HOST_TOOLS_DIR}/bin/datatoc" "$BUILD_DIR/build.ninja" | head -20 || true
+}
+
+build_blenlib() {
+    build_host_tools
+    mkdir -p "$BUILD_DIR"
+    cd "$BUILD_DIR"
+    configure_cmake
+    patch_wasm_host_tools
+
+    cd "$BUILD_DIR"
+    mkdir -p "$ARTIFACTS_DIR/logs"
+
+    echo ""
+    echo "=========================================="
+    echo "Building first DNA-dependent wasm library: libbf_blenlib.a"
+    echo "=========================================="
+    ninja -v lib/libbf_blenlib.a \
+        2>&1 | tee "$ARTIFACTS_DIR/logs/build-bf_blenlib-with-host-tools.log"
+
+    echo ""
+    echo "Result:"
+    ls -lh "$BUILD_DIR/lib/libbf_blenlib.a"
 }
 
 build_minimal() {
@@ -248,9 +380,18 @@ case "$MODE" in
     minimal)
         build_minimal
         ;;
+    host-tools)
+        build_host_tools
+        ;;
+    patch-host-tools)
+        patch_wasm_host_tools
+        ;;
+    blenlib)
+        build_blenlib
+        ;;
     *)
         echo "Unknown mode: $MODE"
-        echo "Usage: build.sh {configure|build|validate-source|minimal}"
+        echo "Usage: build.sh {configure|build|validate-source|minimal|host-tools|patch-host-tools|blenlib}"
         exit 1
         ;;
 esac

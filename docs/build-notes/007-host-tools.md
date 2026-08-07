@@ -1,4 +1,10 @@
 # Phase 3: Build Native Blender Generator Tools
+
+> Superseded on 2026-08-07 by
+> `docs/build-notes/014-host-tools-blenlib-success.md`.
+> The circular-dependency diagnosis in this note is incorrect. The real blocker
+> was host-tool execution during cross-compilation plus wasm portability issues.
+
 Date: 2026-08-07
 Agent: MiniMax-M2.7
 

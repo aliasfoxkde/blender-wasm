@@ -7,6 +7,9 @@
 #   ./scripts/build-blender-wasm.sh validate-source  # Build/link/run minimal source WASM proof
 #   ./scripts/build-blender-wasm.sh shell     # Interactive shell in container
 #   ./scripts/build-blender-wasm.sh clean     # Clean build artifacts
+#   ./scripts/build-blender-wasm.sh host-tools       # Build native generator tools
+#   ./scripts/build-blender-wasm.sh patch-host-tools # Patch wasm Ninja build to use native tools
+#   ./scripts/build-blender-wasm.sh blenlib          # Build first DNA-dependent wasm library
 
 set -euo pipefail
 
@@ -119,6 +122,26 @@ run_validate_source() {
     echo "Validation complete. Log: $LOGS_DIR/validate-source.log"
 }
 
+run_docker_mode() {
+    local mode="$1"
+    local log_file="$LOGS_DIR/$mode.log"
+
+    echo "=========================================="
+    echo "Running Blender WASM build mode: $mode"
+    echo "Log file: $log_file"
+    echo "=========================================="
+
+    docker compose run --rm blender-wasm-build bash -lc "
+        set -euo pipefail
+        mkdir -p /build-tools
+        cp /blender-wasm/docker/blender-wasm-build/build.sh /build-tools/build.sh
+        chmod +x /build-tools/build.sh
+        exec /build-tools/build.sh '$mode'
+    " 2>&1 | tee "$log_file"
+
+    echo "Mode $mode complete. Log: $log_file"
+}
+
 # Clean build artifacts
 run_clean() {
     echo "Cleaning build artifacts..."
@@ -147,6 +170,15 @@ case "${1:-build}" in
     validate-source)
         run_validate_source
         ;;
+    host-tools)
+        run_docker_mode host-tools
+        ;;
+    patch-host-tools)
+        run_docker_mode patch-host-tools
+        ;;
+    blenlib)
+        run_docker_mode blenlib
+        ;;
     shell)
         run_shell
         ;;
@@ -154,7 +186,7 @@ case "${1:-build}" in
         run_clean
         ;;
     *)
-        echo "Usage: $0 {configure|build|minimal|validate-source|shell|clean}"
+        echo "Usage: $0 {configure|build|minimal|validate-source|host-tools|patch-host-tools|blenlib|shell|clean}"
         exit 1
         ;;
 esac

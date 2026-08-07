@@ -1,4 +1,11 @@
 # Phase 4-5: DNA Blocker & Memory API Extension
+
+> Superseded on 2026-08-07 by
+> `docs/build-notes/014-host-tools-blenlib-success.md`.
+> The `makesdna` circular-dependency diagnosis in this note is incorrect.
+> Native host tools now build, `bf_dna` builds for wasm, and
+> `libbf_blenlib.a` builds as a wasm32 archive.
+
 Date: 2026-08-07
 Agent: MiniMax-M2.7
 
