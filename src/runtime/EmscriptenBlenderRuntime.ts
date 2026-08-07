@@ -25,6 +25,27 @@ export interface SmokeTestResult {
   error?: string;
 }
 
+export interface MemoryStats {
+  memory_in_use: number;
+  memory_blocks: number;
+  peak_memory: number;
+  success: boolean;
+}
+
+export interface Library {
+  name: string;
+  provides: string[];
+}
+
+export interface APISummary {
+  version: string;
+  build_type: string;
+  libraries: Library[];
+  api_functions: string[];
+  memory_in_use: number;
+  status: string;
+}
+
 export interface BlenderRuntimeInstance {
   module: EmscriptenModule;
   buildInfo: BuildInfo | null;
@@ -44,6 +65,8 @@ interface EmscriptenModule {
   stringToUTF8?: (str: string, ptr: number, maxBytes: number) => void;
   _bw_get_version_json?: () => number;
   _bw_run_smoke_test?: () => number;
+  _bw_get_memory_stats?: () => number;
+  _bw_get_api_summary?: () => number;
   _malloc?: (size: number) => number;
   _free?: (ptr: number) => void;
 }
@@ -268,6 +291,71 @@ class EmscriptenBlenderRuntime {
    */
   getBuildInfo(): BuildInfo | null {
     return this.instance?.buildInfo || null;
+  }
+
+  /**
+   * Get memory statistics from Blender's guarded allocator.
+   */
+  async getMemoryStats(): Promise<MemoryStats> {
+    if (!this.instance) {
+      return {
+        memory_in_use: 0,
+        memory_blocks: 0,
+        peak_memory: 0,
+        success: false,
+      };
+    }
+
+    try {
+      const module = this.instance.module;
+
+      if (module._bw_get_memory_stats) {
+        const resultPtr = module._bw_get_memory_stats();
+        if (resultPtr && module.UTF8ToString) {
+          const resultStr = module.UTF8ToString(resultPtr);
+          return JSON.parse(resultStr) as MemoryStats;
+        }
+      }
+
+      return {
+        memory_in_use: 0,
+        memory_blocks: 0,
+        peak_memory: 0,
+        success: false,
+      };
+    } catch {
+      return {
+        memory_in_use: 0,
+        memory_blocks: 0,
+        peak_memory: 0,
+        success: false,
+      };
+    }
+  }
+
+  /**
+   * Get API summary describing what the WASM baseline provides.
+   */
+  async getAPISummary(): Promise<APISummary | null> {
+    if (!this.instance) {
+      return null;
+    }
+
+    try {
+      const module = this.instance.module;
+
+      if (module._bw_get_api_summary) {
+        const resultPtr = module._bw_get_api_summary();
+        if (resultPtr && module.UTF8ToString) {
+          const resultStr = module.UTF8ToString(resultPtr);
+          return JSON.parse(resultStr) as APISummary;
+        }
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   /**

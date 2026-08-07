@@ -136,7 +136,7 @@ build_minimal() {
         -sLINKABLE=1 \
         -sMODULARIZE=1 \
         -sEXPORT_NAME=CreateBlenderWasmModule \
-        -sEXPORTED_FUNCTIONS=_bw_get_version_json,_bw_run_smoke_test,_malloc,_free \
+        -sEXPORTED_FUNCTIONS=_bw_get_version_json,_bw_run_smoke_test,_bw_get_memory_stats,_bw_get_api_summary,_malloc,_free \
         -sEXPORTED_RUNTIME_METHODS=UTF8ToString \
         -sALLOW_MEMORY_GROWTH=1 \
         -sINITIAL_MEMORY=16777216 \
