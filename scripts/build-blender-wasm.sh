@@ -4,10 +4,11 @@
 # Usage:
 #   ./scripts/build-blender-wasm.sh configure  # Run CMake configure only
 #   ./scripts/build-blender-wasm.sh build     # Run configure + ninja build
+#   ./scripts/build-blender-wasm.sh validate-source  # Build/link/run minimal source WASM proof
 #   ./scripts/build-blender-wasm.sh shell     # Interactive shell in container
 #   ./scripts/build-blender-wasm.sh clean     # Clean build artifacts
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -29,7 +30,13 @@ run_configure() {
     echo "Log file: $LOGS_DIR/configure.log"
     echo "=========================================="
 
-    docker compose run --rm blender-wasm-build bash /build-tools/build.sh configure 2>&1 | tee "$LOGS_DIR/configure.log"
+    docker compose run --rm blender-wasm-build bash -lc '
+        set -euo pipefail
+        mkdir -p /build-tools
+        cp /blender-wasm/docker/blender-wasm-build/build.sh /build-tools/build.sh
+        chmod +x /build-tools/build.sh
+        exec /build-tools/build.sh configure
+    ' 2>&1 | tee "$LOGS_DIR/configure.log"
 
     echo "Configure complete. Log: $LOGS_DIR/configure.log"
 }
@@ -46,7 +53,13 @@ run_build() {
         run_configure
     fi
 
-    docker compose run --rm blender-wasm-build bash /build-tools/build.sh build 2>&1 | tee "$LOGS_DIR/build.log"
+    docker compose run --rm blender-wasm-build bash -lc '
+        set -euo pipefail
+        mkdir -p /build-tools
+        cp /blender-wasm/docker/blender-wasm-build/build.sh /build-tools/build.sh
+        chmod +x /build-tools/build.sh
+        exec /build-tools/build.sh build
+    ' 2>&1 | tee "$LOGS_DIR/build.log"
 
     # Copy artifacts to output directory
     echo "=========================================="
@@ -63,6 +76,24 @@ run_build() {
     echo "Build complete!"
     echo "Artifacts: $BLENDER_WASM_DIR"
     ls -la "$BLENDER_WASM_DIR/" 2>/dev/null || echo "No artifacts found yet"
+}
+
+# Compile and execute a minimal WASM module linked against real Blender source libraries
+run_validate_source() {
+    echo "=========================================="
+    echo "Validating Blender source WASM compilation..."
+    echo "Log file: $LOGS_DIR/validate-source.log"
+    echo "=========================================="
+
+    docker compose run --rm blender-wasm-build bash -lc '
+        set -euo pipefail
+        mkdir -p /build-tools
+        cp /blender-wasm/docker/blender-wasm-build/build.sh /build-tools/build.sh
+        chmod +x /build-tools/build.sh
+        exec /build-tools/build.sh validate-source
+    ' 2>&1 | tee "$LOGS_DIR/validate-source.log"
+
+    echo "Validation complete. Log: $LOGS_DIR/validate-source.log"
 }
 
 # Clean build artifacts
@@ -87,6 +118,9 @@ case "${1:-build}" in
     build)
         run_build
         ;;
+    validate-source)
+        run_validate_source
+        ;;
     shell)
         run_shell
         ;;
@@ -94,7 +128,7 @@ case "${1:-build}" in
         run_clean
         ;;
     *)
-        echo "Usage: $0 {configure|build|shell|clean}"
+        echo "Usage: $0 {configure|build|validate-source|shell|clean}"
         exit 1
         ;;
 esac
