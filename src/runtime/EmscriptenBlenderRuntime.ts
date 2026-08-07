@@ -141,6 +141,14 @@ class EmscriptenBlenderRuntime {
   }
 
   private async loadModuleFactory(blenderJsUrl: string): Promise<EmscriptenModuleFactory> {
+    // For public Emscripten artifacts under /wasm/blender/, skip dynamic import
+    // because Vite cannot process /public assets through import().
+    // Go directly to script tag loading which works correctly.
+    if (blenderJsUrl.startsWith('/wasm/blender/')) {
+      return this.loadModuleFactoryViaScriptTag(blenderJsUrl);
+    }
+
+    // For non-public or ESM-compatible paths, try dynamic import first
     try {
       const imported = await import(/* @vite-ignore */ blenderJsUrl) as Record<string, unknown>;
       const factory = imported.default ?? imported[MODULE_FACTORY_NAME];
@@ -148,9 +156,13 @@ class EmscriptenBlenderRuntime {
         return factory as EmscriptenModuleFactory;
       }
     } catch {
-      // Fall back to non-ESM script loading below.
+      // Fall back to script tag loading below.
     }
 
+    return this.loadModuleFactoryViaScriptTag(blenderJsUrl);
+  }
+
+  private loadModuleFactoryViaScriptTag(blenderJsUrl: string): Promise<EmscriptenModuleFactory> {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = blenderJsUrl;

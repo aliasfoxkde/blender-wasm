@@ -122,36 +122,11 @@ build_minimal() {
     echo "Linking minimal Blender module..."
     echo "=========================================="
 
-    # Create wrapper with bridge API
-    cat > /tmp/blender_wrap.c << 'WRAPEOF'
-#include <stdio.h>
-extern void CLG_init(void);
-extern void CLG_exit(void);
-extern void CLG_level_set(int level);
-char* bw_get_version_json(void) {
-    static char json[512];
-    snprintf(json, sizeof(json),
-        "{\"version\":\"4.2.0-wasm\",\"build_type\":\"minimal\","
-        "\"library\":\"bf_intern_clog\",\"status\":\"working\"}");
-    return json;
-}
-char* bw_run_smoke_test(void) {
-    static char result[512];
-    CLG_init();
-    CLG_level_set(0);
-    CLG_exit();
-    snprintf(result, sizeof(result),
-        "{\"success\":true,\"message\":\"Real Blender code executed\","
-        "\"functions\":[\"CLG_init\",\"CLG_level_set\",\"CLG_exit\"]}");
-    return result;
-}
-WRAPEOF
-
-    # Link with Blender libraries
+    # Link with Blender libraries using explicit bridge source
     # NOTE: -sLINKABLE=1 is required to prevent dead code elimination from
     # stripping archive members. Without it, wasm-ld removes "unused" symbols
     # even when --whole-archive is specified.
-    emcc /tmp/blender_wrap.c \
+    emcc /blender-wasm/docker/blender-wasm-build/minimal/blender_minimal_bridge.c \
         lib/libbf_intern_clog.a \
         lib/libbf_intern_guardedalloc.a \
         lib/libbf_intern_libc_compat.a \
