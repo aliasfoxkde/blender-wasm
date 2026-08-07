@@ -224,6 +224,49 @@ build_blenlib() {
     ls -lh "$BUILD_DIR/lib/libbf_blenlib.a"
 }
 
+build_blenlib_module() {
+    # Build the blenlib library first
+    build_blenlib
+
+    mkdir -p "$ARTIFACTS_DIR/blender-wasm"
+
+    echo ""
+    echo "=========================================="
+    echo "Linking experimental blenlib WASM module..."
+    echo "=========================================="
+
+    # Link the blenlib bridge with blenlib library
+    # NOTE: -sLINKABLE=1 prevents dead code elimination
+    emcc /blender-wasm/docker/blender-wasm-build/blenlib/blender_blenlib_bridge.c \
+        "$BUILD_DIR/lib/libbf_blenlib.a" \
+        "$BUILD_DIR/lib/libbf_dna.a" \
+        "$BUILD_DIR/lib/libbf_intern_clog.a" \
+        "$BUILD_DIR/lib/libbf_intern_guardedalloc.a" \
+        "$BUILD_DIR/lib/libbf_intern_libc_compat.a" \
+        -I"$BLENDER_SRC/intern/clog" \
+        -I"$BLENDER_SRC/intern/guardedalloc" \
+        -I"$BLENDER_SRC/intern/guardedalloc/intern" \
+        -I"$BLENDER_SRC/intern/atomic" \
+        -I"$BLENDER_SRC/source/blender/blenlib/intern" \
+        -I"$BLENDER_SRC/source/blender/makesdna" \
+        -sLINKABLE=1 \
+        -sMODULARIZE=1 \
+        -sEXPORT_NAME=CreateBlenderBlenlibModule \
+        -sEXPORTED_FUNCTIONS=_bw_blenlib_capabilities_json,_bw_blenlib_smoke_test,_bw_hash_string_mm2a,_malloc,_free \
+        -sEXPORTED_RUNTIME_METHODS=UTF8ToString \
+        -sALLOW_MEMORY_GROWTH=1 \
+        -sINITIAL_MEMORY=16777216 \
+        -sWASM=1 \
+        -o "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.js"
+
+    echo ""
+    echo "=========================================="
+    echo "Experimental blenlib module built!"
+    echo "=========================================="
+    ls -lh "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.js" "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.wasm" 2>/dev/null || \
+    ls -lh "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.js" 2>/dev/null || echo "Check artifacts"
+}
+
 build_minimal() {
     ensure_configured
     mkdir -p "$ARTIFACTS_DIR/blender-wasm" "$BLENDER_WASM_PUBLIC_DIR"
@@ -389,9 +432,12 @@ case "$MODE" in
     blenlib)
         build_blenlib
         ;;
+    blenlib-module)
+        build_blenlib_module
+        ;;
     *)
         echo "Unknown mode: $MODE"
-        echo "Usage: build.sh {configure|build|validate-source|minimal|host-tools|patch-host-tools|blenlib}"
+        echo "Usage: build.sh {configure|build|validate-source|minimal|host-tools|patch-host-tools|blenlib|blenlib-module}"
         exit 1
         ;;
 esac

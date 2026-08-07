@@ -10,6 +10,7 @@
 #   ./scripts/build-blender-wasm.sh host-tools       # Build native generator tools
 #   ./scripts/build-blender-wasm.sh patch-host-tools # Patch wasm Ninja build to use native tools
 #   ./scripts/build-blender-wasm.sh blenlib          # Build first DNA-dependent wasm library
+#   ./scripts/build-blender-wasm.sh blenlib-module  # Build experimental blenlib WASM module
 
 set -euo pipefail
 
@@ -179,6 +180,9 @@ case "${1:-build}" in
     blenlib)
         run_docker_mode blenlib
         ;;
+    blenlib-module)
+        run_docker_mode blenlib-module
+        ;;
     shell)
         run_shell
         ;;
@@ -186,7 +190,7 @@ case "${1:-build}" in
         run_clean
         ;;
     *)
-        echo "Usage: $0 {configure|build|minimal|validate-source|host-tools|patch-host-tools|blenlib|shell|clean}"
+        echo "Usage: $0 {configure|build|minimal|validate-source|host-tools|patch-host-tools|blenlib|blenlib-module|shell|clean}"
         exit 1
         ;;
 esac
