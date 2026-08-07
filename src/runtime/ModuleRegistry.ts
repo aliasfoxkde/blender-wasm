@@ -8,6 +8,7 @@ export interface ModuleInfo {
   name: string;
   version: string;
   url: string;
+  wasmUrl?: string;
   size: number;
   dependencies: string[];
   loaded: boolean;
@@ -29,114 +30,16 @@ class ModuleRegistry {
   }
 
   private registerDefaultModules() {
-    // Core Blender modules
+    // Single Blender WASM artifact - produced by Docker build
+    // See docs/MVP_EXECUTION_PLAN.md Phase 4 for artifact details
     this.register({
-      id: 'core',
-      name: 'Blender Core',
+      id: 'blender',
+      name: 'Blender WASM',
       version: '1.0.0',
-      url: '/wasm/blender_core.wasm',
-      size: 0, // Will be determined at load time
+      url: '/wasm/blender/blender.js',
+      wasmUrl: '/wasm/blender/blender.wasm',
+      size: 0,
       dependencies: [],
-    });
-
-    // Optional modules
-    this.register({
-      id: 'mesh',
-      name: 'Mesh System',
-      version: '1.0.0',
-      url: '/wasm/blender_mesh.wasm',
-      size: 0,
-      dependencies: ['core'],
-    });
-
-    this.register({
-      id: 'sculpt',
-      name: 'Sculpt Mode',
-      version: '1.0.0',
-      url: '/wasm/blender_sculpt.wasm',
-      size: 0,
-      dependencies: ['core', 'mesh'],
-    });
-
-    this.register({
-      id: 'animation',
-      name: 'Animation System',
-      version: '1.0.0',
-      url: '/wasm/blender_animation.wasm',
-      size: 0,
-      dependencies: ['core'],
-    });
-
-    this.register({
-      id: 'physics',
-      name: 'Physics Simulation',
-      version: '1.0.0',
-      url: '/wasm/blender_physics.wasm',
-      size: 0,
-      dependencies: ['core'],
-    });
-
-    this.register({
-      id: 'geometry-nodes',
-      name: 'Geometry Nodes',
-      version: '1.0.0',
-      url: '/wasm/blender_geometry_nodes.wasm',
-      size: 0,
-      dependencies: ['core', 'mesh'],
-    });
-
-    this.register({
-      id: 'cycles',
-      name: 'Cycles Renderer',
-      version: '1.0.0',
-      url: '/wasm/blender_cycles.wasm',
-      size: 0,
-      dependencies: ['core'],
-    });
-
-    this.register({
-      id: 'eevee',
-      name: 'Eevee Renderer',
-      version: '1.0.0',
-      url: '/wasm/blender_eevee.wasm',
-      size: 0,
-      dependencies: ['core'],
-    });
-
-    this.register({
-      id: 'python',
-      name: 'Python Interpreter',
-      version: '1.0.0',
-      url: '/wasm/blender_python.wasm',
-      size: 0,
-      dependencies: ['core'],
-    });
-
-    this.register({
-      id: 'usd',
-      name: 'USD Import/Export',
-      version: '1.0.0',
-      url: '/wasm/blender_usd.wasm',
-      size: 0,
-      dependencies: ['core'],
-    });
-
-    this.register({
-      id: 'fbx',
-      name: 'FBX Import/Export',
-      version: '1.0.0',
-      url: '/wasm/blender_fbx.wasm',
-      size: 0,
-      dependencies: ['core'],
-    });
-
-    this.register({
-      id: 'obj',
-      name: 'OBJ Import/Export',
-      version: '1.0.0',
-      url: '/wasm/blender_obj.wasm',
-      size: 0,
-      dependencies: ['core'],
     });
   }
 

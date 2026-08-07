@@ -29,9 +29,9 @@ describe('ModuleManager', () => {
   });
 
   describe('isLoaded', () => {
-    it('should return false for core module initially', () => {
-      // Core module is registered but not loaded until explicitly loaded
-      expect(moduleManager.isLoaded('core')).toBe(false);
+    it('should return false for blender module initially', () => {
+      // Blender module is registered but not loaded until explicitly loaded
+      expect(moduleManager.isLoaded('blender')).toBe(false);
     });
 
     it('should return false for non-existent module', () => {
@@ -41,15 +41,15 @@ describe('ModuleManager', () => {
 
   describe('isLoading', () => {
     it('should return false initially', () => {
-      expect(moduleManager.isLoading('core')).toBe(false);
+      expect(moduleManager.isLoading('blender')).toBe(false);
     });
   });
 
   describe('getModule', () => {
     it('should return module info for registered module', () => {
-      const module = moduleManager.getModule('core');
+      const module = moduleManager.getModule('blender');
       expect(module).toBeDefined();
-      expect(module?.id).toBe('core');
+      expect(module?.id).toBe('blender');
     });
 
     it('should return undefined for non-existent module', () => {
@@ -59,51 +59,34 @@ describe('ModuleManager', () => {
   });
 
   describe('getUnmetDependencies', () => {
-    it('should return dependencies for registered module', () => {
-      const deps = moduleManager.getUnmetDependencies('sculpt');
-      expect(deps).toContain('core');
-      expect(deps).toContain('mesh');
+    it('should return empty for blender module with no dependencies', () => {
+      const deps = moduleManager.getUnmetDependencies('blender');
+      expect(deps).toEqual([]);
+    });
+
+    it('should return empty for non-existent module', () => {
+      const deps = moduleManager.getUnmetDependencies('non-existent');
+      expect(deps).toEqual([]);
     });
   });
 
   describe('getRecommendedModules', () => {
-    it('should return recommended modules', () => {
+    it('should return blender as the only recommended module', () => {
       const recommended = moduleManager.getRecommendedModules();
-      expect(recommended).toContain('core');
-      expect(recommended).toContain('mesh');
-      expect(recommended).toContain('animation');
+      expect(recommended).toEqual(['blender']);
     });
   });
 
   describe('suggestModules', () => {
-    it('should suggest modules for sculpting', () => {
+    it('should return blender for any action', () => {
+      // All actions now load the single blender artifact
       const suggested = moduleManager.suggestModules('start_sculpting');
-      expect(suggested).toContain('core');
-      expect(suggested).toContain('mesh');
-      expect(suggested).toContain('sculpt');
+      expect(suggested).toEqual(['blender']);
     });
 
-    it('should suggest modules for animation', () => {
-      const suggested = moduleManager.suggestModules('start_animation');
-      expect(suggested).toContain('core');
-      expect(suggested).toContain('animation');
-    });
-
-    it('should suggest modules for rendering', () => {
-      const suggested = moduleManager.suggestModules('start_render');
-      expect(suggested).toContain('core');
-      expect(suggested).toContain('eevee');
-    });
-
-    it('should suggest modules for import', () => {
-      const suggested = moduleManager.suggestModules('import_fbx');
-      expect(suggested).toContain('core');
-      expect(suggested).toContain('fbx');
-    });
-
-    it('should return core for unknown action', () => {
+    it('should return blender for unknown action', () => {
       const suggested = moduleManager.suggestModules('unknown_action');
-      expect(suggested).toEqual(['core']);
+      expect(suggested).toEqual(['blender']);
     });
   });
 });

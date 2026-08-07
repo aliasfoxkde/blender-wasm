@@ -18,30 +18,38 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
 
   const loadModules = async () => {
     setIsLoading(true);
-    setLoadStatus('Loading core module...');
+    setLoadStatus('Checking for Blender artifact...');
 
     try {
-      // Load core module
-      await moduleManager.load('core', {
+      // Check if artifact exists
+      const blenderModule = moduleManager.getModule('blender');
+      if (!blenderModule) {
+        throw new Error('Blender WASM artifact not registered. Run ./scripts/build-blender-wasm.sh build.');
+      }
+
+      // Check artifact presence via fetch
+      setLoadStatus('Loading Blender runtime...');
+      const jsResponse = await fetch(blenderModule.url, { method: 'HEAD' });
+      if (!jsResponse.ok) {
+        throw new Error(
+          `Blender WASM artifact not installed. Run ./scripts/build-blender-wasm.sh build.\n` +
+          `Expected at: ${blenderModule.url}`
+        );
+      }
+
+      setLoadProgress(30);
+      setLoadStatus('Initializing Blender bridge...');
+
+      // Load the Blender module
+      await moduleManager.load('blender', {
         onProgress: (progress: LoaderProgress) => {
-          setLoadProgress(progress.progress);
+          setLoadProgress(30 + progress.progress * 0.5);
           setLoadStatus(`Loading ${progress.moduleId}...`);
         },
       });
 
-      setLoadStatus('Loading mesh system...');
-      setLoadProgress(50);
-
-      // Load additional modules based on capability
-      const gpu = props.capabilityProfile?.gpu;
-      if (gpu?.webgpu) {
-        await moduleManager.load('eevee');
-      } else {
-        // WebGL only - load simpler modules
-      }
-
-      setLoadStatus('Initializing renderer...');
-      setLoadProgress(90);
+      setLoadProgress(80);
+      setLoadStatus('Running smoke test...');
 
       // Initialize graphics
       await initGraphics();
@@ -54,8 +62,8 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
       // Start render loop
       startRenderLoop();
     } catch (err) {
-      console.error('Failed to load modules:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load modules');
+      console.error('Failed to load Blender:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load Blender');
       setIsLoading(false);
     }
   };
@@ -172,7 +180,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
 
             <div class="loading-info">
               <span>Graphics: {getCapabilityLabel()}</span>
-              <span>Modules: {moduleManager.getState().loadedModules.length} loaded</span>
+              <span>Status: {moduleManager.getState().loadedModules.length > 0 ? 'Loaded' : 'Loading...'}</span>
             </div>
           </div>
         </div>
@@ -205,9 +213,6 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           <div class="status-right">
             <span class="status-item">
               {getCapabilityLabel()}
-            </span>
-            <span class="status-item">
-              {moduleManager.getState().loadedModules.length} modules
             </span>
           </div>
         </div>
