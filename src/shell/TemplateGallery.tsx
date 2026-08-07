@@ -1,4 +1,4 @@
-import { Component, For, Show, createSignal } from 'solid-js';
+import { Component, For, createSignal } from 'solid-js';
 
 export interface Template {
   id: string;

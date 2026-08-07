@@ -179,7 +179,7 @@ class PerformanceManager {
     };
 
     const cores = detectCPU();
-    const gpu = await detectGPU();
+    const _gpu = await detectGPU();
     const memory = detectMemory();
 
     // Determine preset based on hardware
@@ -218,14 +218,15 @@ class PerformanceManager {
   async optimize(): Promise<void> {
     // Check for SIMD support
     const hasSIMD = typeof WebAssembly !== 'undefined' &&
-      typeof WebAssembly.validate === function() {
+      (typeof WebAssembly.validate === 'function') &&
+      (() => {
         try {
           // Simple SIMD detection
           return new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 7, 1, 96, 0, 1, 123, 3, 2, 1, 0, 7, 8, 1, 4, 116, 121, 112, 101, 0, 0]).some(() => true);
         } catch {
           return false;
         }
-      }();
+      })();
 
     // Check for SharedArrayBuffer (threads)
     const hasThreads = typeof SharedArrayBuffer !== 'undefined';

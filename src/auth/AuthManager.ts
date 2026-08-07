@@ -3,7 +3,8 @@
  */
 
 import { profileStorage, type UserProfile } from '../storage/ProfileStorage';
-import { settingsStorage } from '../storage/SettingsStorage';
+
+export type { UserProfile };
 
 export type AuthMode = 'guest' | 'local' | 'cloud';
 export type AuthProvider = 'anonymous' | 'local' | 'github' | 'google';
@@ -34,7 +35,8 @@ class AuthManager {
     if (profile) {
       this.state = {
         mode: profile.syncEnabled ? 'cloud' : 'local',
-        provider: profile.syncEnabled ? 'cloud' : 'local',
+        // 'cloud' mode uses 'local' as the auth provider placeholder since we don't track which OAuth was used
+        provider: 'local',
         isAuthenticated: true,
         profile,
       };
@@ -90,7 +92,8 @@ class AuthManager {
 
     this.state = {
       mode: profile.syncEnabled ? 'cloud' : 'local',
-      provider: profile.syncEnabled ? 'cloud' : 'local',
+      // 'cloud' mode uses 'local' as the auth provider placeholder since we don't track which OAuth was used
+      provider: 'local',
       isAuthenticated: true,
       profile,
     };

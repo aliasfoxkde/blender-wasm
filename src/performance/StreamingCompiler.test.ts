@@ -35,7 +35,7 @@ describe('StreamingCompiler', () => {
 
     it('should compile multiple modules with progress', async () => {
       let progressCalls = 0;
-      const onProgress = vi.fn((completed, total) => {
+      const onProgress = vi.fn((_completed: number, _total: number) => {
         progressCalls++;
       });
 

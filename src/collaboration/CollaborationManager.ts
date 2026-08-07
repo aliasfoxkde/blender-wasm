@@ -47,7 +47,7 @@ export interface ProjectShare {
 class CollaborationManager {
   private connected = false;
   private socket: WebSocket | null = null;
-  private listeners: Map<string, Set<Function>> = new Map();
+  private listeners: Map<string, Set<(data: unknown) => void>> = new Map();
 
   async isEnabled(): Promise<boolean> {
     const authState = authManager.getState();
@@ -89,7 +89,7 @@ class CollaborationManager {
     return { url, shareId };
   }
 
-  async getSharedProject(shareId: string): Promise<ProjectShare | null> {
+  async getSharedProject(_shareId: string): Promise<ProjectShare | null> {
     // In production, this would fetch from the server
     return null;
   }
@@ -110,12 +110,12 @@ class CollaborationManager {
     console.log(`Removed collaborator ${collaboratorId} from ${shareId}`);
   }
 
-  async getComments(shareId: string): Promise<Comment[]> {
+  async getComments(_shareId: string): Promise<Comment[]> {
     // In production, this would fetch from the server
     return [];
   }
 
-  async addComment(shareId: string, content: string, parentId?: string): Promise<Comment> {
+  async addComment(_shareId: string, content: string, _parentId?: string): Promise<Comment> {
     const comment: Comment = {
       id: crypto.randomUUID(),
       author: {
@@ -134,12 +134,12 @@ class CollaborationManager {
     return comment;
   }
 
-  async resolveComment(shareId: string, commentId: string): Promise<void> {
-    console.log(`Resolved comment ${commentId} in ${shareId}`);
+  async resolveComment(_shareId: string, _commentId: string): Promise<void> {
+    console.log(`Resolved comment ${_commentId} in ${_shareId}`);
   }
 
   // Real-time updates
-  on(event: string, callback: Function): () => void {
+  on(event: string, callback: (data: unknown) => void): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
@@ -155,9 +155,9 @@ class CollaborationManager {
   }
 
   // Sync state
-  async syncProject(projectId: string): Promise<void> {
+  async syncProject(_projectId: string): Promise<void> {
     if (!(await this.isEnabled())) return;
-    console.log(`Syncing project ${projectId}`);
+    console.log(`Syncing project ${_projectId}`);
   }
 
   async resolveConflict(projectId: string, resolution: 'local' | 'remote' | 'merge'): Promise<void> {

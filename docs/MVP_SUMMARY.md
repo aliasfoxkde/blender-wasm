@@ -1,6 +1,6 @@
 # Project Summary
 
-## Blender Web Edition - MVP Complete
+## Blender Web Edition - In Progress
 
 ### Overview
 
@@ -118,12 +118,12 @@ Download the release archive and run `./start.sh`
 
 ### Status
 
-This is an **MVP** - the scaffolding and architecture are complete. The next major step is actually compiling Blender to WebAssembly, which requires:
+**In Progress** - The web shell scaffold and architecture are complete. Blender WASM integration is pending. The MVP definition per `docs/MVP_EXECUTION_PLAN.md` requires:
 
-1. Setting up Emscripten build environment
-2. Modifying Blender source for web compatibility
-3. Implementing the graphics pipeline (WebGPU)
-4. Testing and optimization
+1. A reproducible Docker build producing a Blender-derived WASM artifact
+2. The artifact loaded through the Emscripten-generated JS loader
+3. A browser smoke test proving Blender code executed
+4. All quality gates passing (typecheck, lint, test, build)
 
 ### Acknowledgments
 

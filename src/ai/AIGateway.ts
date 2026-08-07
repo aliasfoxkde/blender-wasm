@@ -120,23 +120,23 @@ class AISceneGraph {
     return [];
   }
 
-  async getObject(id: string): Promise<SceneObject | null> {
+  async getObject(_id: string): Promise<SceneObject | null> {
     return null;
   }
 
-  async addObject(type: SceneObject['type'], properties?: Partial<SceneObject>): Promise<SceneObject | null> {
+  async addObject(_type: SceneObject['type'], _properties?: Partial<SceneObject>): Promise<SceneObject | null> {
     return null;
   }
 
-  async removeObject(id: string): Promise<boolean> {
+  async removeObject(_id: string): Promise<boolean> {
     return false;
   }
 
-  async modifyObject(id: string, changes: Partial<SceneObject>): Promise<boolean> {
+  async modifyObject(_id: string, _changes: Partial<SceneObject>): Promise<boolean> {
     return false;
   }
 
-  async selectObject(id: string): Promise<boolean> {
+  async selectObject(_id: string): Promise<boolean> {
     return false;
   }
 
@@ -148,11 +148,11 @@ class AISceneGraph {
     return [];
   }
 
-  async duplicateObject(id: string): Promise<SceneObject | null> {
+  async duplicateObject(_id: string): Promise<SceneObject | null> {
     return null;
   }
 
-  async parentObject(childId: string, parentId: string | null): Promise<boolean> {
+  async parentObject(_childId: string, _parentId: string | null): Promise<boolean> {
     return false;
   }
 }
@@ -163,26 +163,26 @@ class AIMaterialManager {
     return [];
   }
 
-  async createMaterial(name: string): Promise<Material | null> {
+  async createMaterial(_name: string): Promise<Material | null> {
     return null;
   }
 
-  async assignMaterial(objectId: string, materialId: string): Promise<boolean> {
+  async assignMaterial(_objectId: string, _materialId: string): Promise<boolean> {
     return false;
   }
 
-  async updateMaterialNode(materialId: string, nodeId: string, inputs: Record<string, unknown>): Promise<boolean> {
+  async updateMaterialNode(_materialId: string, _nodeId: string, _inputs: Record<string, unknown>): Promise<boolean> {
     return false;
   }
 }
 
 // Rendering API
 class AIRenderEngine {
-  async render(viewportOnly: boolean = false): Promise<ArrayBuffer | null> {
+  async render(_viewportOnly: boolean = false): Promise<ArrayBuffer | null> {
     return null;
   }
 
-  async setRenderSettings(settings: RenderSettings): Promise<boolean> {
+  async setRenderSettings(_settings: RenderSettings): Promise<boolean> {
     return false;
   }
 
@@ -202,19 +202,19 @@ export interface RenderSettings {
 
 // Animation API
 class AIAnimation {
-  async getKeyframes(frame: number): Promise<unknown[]> {
+  async getKeyframes(_frame: number): Promise<unknown[]> {
     return [];
   }
 
-  async setKeyframe(objectId: string, frame: number, properties: string[]): Promise<boolean> {
+  async setKeyframe(_objectId: string, _frame: number, _properties: string[]): Promise<boolean> {
     return false;
   }
 
-  async play(start: number, end: number): Promise<void> {}
+  async play(_start: number, _end: number): Promise<void> {}
 
   async stop(): Promise<void> {}
 
-  async setFrame(frame: number): Promise<void> {}
+  async setFrame(_frame: number): Promise<void> {}
 }
 
 // Main AI Gateway
@@ -236,7 +236,7 @@ class AIGateway {
 
   private registerDefaultHandlers() {
     // Scene operations
-    this.registerHandler('scene.get', async (cmd) => ({
+    this.registerHandler('scene.get', async (_cmd) => ({
       success: true,
       result: await this.sceneGraph.getScene()
     }));

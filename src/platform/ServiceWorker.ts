@@ -9,6 +9,7 @@ export interface ServiceWorkerRegistration {
 
 interface InternalRegistration extends ServiceWorkerRegistration {
   active?: ServiceWorker;
+  addEventListener?: (type: string, listener: () => void) => void;
 }
 
 class ServiceWorkerManager {
@@ -23,7 +24,7 @@ class ServiceWorkerManager {
     try {
       this.registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
-      }) as InternalRegistration;
+      }) as unknown as InternalRegistration;
 
       // Handle updates
       this.registration.addEventListener?.('updatefound', () => {

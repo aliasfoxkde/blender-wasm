@@ -235,10 +235,10 @@ class PluginManager {
       if (plugin.instance?.hooks.onAICommand) {
         try {
           const response = await plugin.instance.hooks.onAICommand(command);
-          if (response.success) {
-            responses.push(response);
+          if (response && typeof response === 'object' && 'success' in response && response.success) {
+            responses.push(response as AIResponse);
           }
-        } catch (error) {
+        } catch (_error: unknown) {
           // Continue to next plugin
         }
       }

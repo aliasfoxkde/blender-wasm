@@ -7,7 +7,7 @@ interface PluginDialogProps {
 }
 
 export const PluginDialog: Component<PluginDialogProps> = (props) => {
-  const [activeTab, setActiveTab] = createSignal<'installed' | 'available' | ' marketplace'>('installed');
+  const [activeTab, setActiveTab] = createSignal<'installed' | 'available' | 'marketplace'>('installed');
 
   const getPlugins = () => pluginManager.getAllPlugins();
   const getLoadedPlugins = () => pluginManager.getLoadedPlugins();

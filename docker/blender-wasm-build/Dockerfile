@@ -28,6 +28,9 @@ WORKDIR /openimageio-stub/build
 RUN emcmake cmake .. -DCMAKE_BUILD_TYPE=Release && \
     emmake make -j$(nproc)
 
+# Copy CMake stub modules for cross-compilation
+COPY cmake-stubs/ /cmake-stubs/
+
 # Clone Blender source (skip LFS since we don't need binary assets for WASM build)
 WORKDIR /build
 ARG BLENDER_BRANCH=blender-v4.2-release

@@ -1,4 +1,4 @@
-import { Component, createSignal, onMount } from 'solid-js';
+import { Component, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { Header } from './components/Header';
 import { Splash } from './components/Splash';
@@ -16,7 +16,7 @@ export interface AppState {
   loadProgress: number;
   capabilityProfile: CapabilityProfile | null;
   currentView: 'splash' | 'dashboard' | 'blender';
-  recentProjects: Array<{ name: string; path: string; lastOpened: Date }>;
+  recentProjects: Array<{ id: string; name: string; path: string; lastOpened: Date }>;
 }
 
 const App: Component = () => {
@@ -46,7 +46,7 @@ const App: Component = () => {
     // Load recent projects from IndexedDB
     // TODO: Implement actual IndexedDB storage
     setState('recentProjects', [
-      { name: 'Example Project', path: '/projects/example.blend', lastOpened: new Date() }
+      { id: 'example-1', name: 'Example Project', path: '/projects/example.blend', lastOpened: new Date() }
     ]);
 
     setState('isLoading', false);

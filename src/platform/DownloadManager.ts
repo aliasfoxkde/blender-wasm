@@ -97,17 +97,18 @@ export class DownloadManager {
       }
 
       // Combine chunks into a single blob
-      const blob = new Blob(chunks);
+      const blob = new Blob(chunks.map(c => new Uint8Array(c)));
       task.blob = blob;
       task.status = 'completed';
       task.onComplete?.(blob);
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      const err = error as Error;
+      if (err.name === 'AbortError') {
         task.status = 'paused';
       } else {
         task.status = 'failed';
-        task.error = error.message;
-        task.onError?.(error);
+        task.error = err.message;
+        task.onError?.(err);
       }
     } finally {
       this.activeDownloads.delete(id);

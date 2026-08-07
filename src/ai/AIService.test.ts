@@ -14,7 +14,7 @@ describe('AIService', () => {
 
     it('should merge with existing config', () => {
       aiService.configure({ provider: 'mock' });
-      aiService.configure({ apiKey: 'test-key' });
+      aiService.configure({ provider: 'mock', apiKey: 'test-key' });
       // Should not throw
     });
   });
@@ -31,7 +31,7 @@ describe('AIService', () => {
     });
 
     it('should return error for unknown provider', async () => {
-      aiService.configure({ provider: 'unknown' as any });
+      aiService.configure({ provider: 'unknown' as 'mock' });
       const response = await aiService.processCommand({
         id: 'test',
         prompt: 'test',

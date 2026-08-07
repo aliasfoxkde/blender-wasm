@@ -14,9 +14,9 @@ export interface LoaderProgress {
 export type ProgressCallback = (progress: LoaderProgress) => void;
 
 interface WASMImports {
-  env: Record<string, unknown>;
-  wasi_snapshot_preview1?: Record<string, unknown>;
-  blender?: Record<string, unknown>;
+  env: Record<string, WebAssembly.ImportValue>;
+  wasi_snapshot_preview1?: Record<string, WebAssembly.ImportValue>;
+  blender?: Record<string, WebAssembly.ImportValue>;
 }
 
 interface WASMExports {
@@ -47,7 +47,7 @@ class WASMLoader {
         },
 
         // Logging
-        emscripten_log: (level: number, message: number) => {
+        emscripten_log: (_level: number, _message: number) => {
           // Forward to console
         },
 
@@ -66,7 +66,7 @@ class WASMLoader {
         max: Math.max,
 
         // Memory allocation
-        malloc: (size: number) => {
+        malloc: (_size: number) => {
           const memory = this.getActiveMemory();
           if (!memory) return 0;
           const buffer = new Uint8Array(memory.buffer);
@@ -240,11 +240,8 @@ class WASMLoader {
       },
     };
 
-    const result = await WebAssembly.instantiate(wasmBytes, importWithMemory);
+    const result = await WebAssembly.instantiate(wasmBytes, importWithMemory as WebAssembly.Imports);
     const exports = result.instance.exports as WASMExports;
-
-    // Store exports
-    this.memoryBuffer.set(moduleId, exports);
 
     return {
       module: exports,

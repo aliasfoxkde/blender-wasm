@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { RecentProjects, type Project } from './RecentProjects';
+import { describe, it, expect } from 'vitest';
+import { type Project } from './RecentProjects';
 
 describe('RecentProjects', () => {
   describe('formatDate', () => {

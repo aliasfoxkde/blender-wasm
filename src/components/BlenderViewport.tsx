@@ -81,7 +81,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
       try {
         const adapter = await navigator.gpu.requestAdapter();
         if (adapter) {
-          const device = await adapter.requestDevice();
+          await adapter.requestDevice();
           const context = canvasRef.getContext('webgpu');
           if (context) {
             console.log('Using WebGPU');

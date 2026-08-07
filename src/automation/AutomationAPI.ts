@@ -2,7 +2,7 @@
  * Automation API - Local API service for trusted integrations
  */
 
-import { aiGateway } from '../ai/AIGateway';
+import { aiGateway, type SceneObject } from '../ai/AIGateway';
 import { projectStorage } from '../storage/ProjectStorage';
 import { opfsStorage } from '../storage/OPFSStorage';
 
@@ -25,7 +25,7 @@ export interface APIResponse {
   body: unknown;
 }
 
-type RouteHandler = (params: Record<string, string>, body: unknown) => Promise<APIResponse>;
+type RouteHandler = (params: Record<string, string>, body: unknown) => Promise<unknown>;
 
 interface Route {
   method: string;
@@ -34,7 +34,7 @@ interface Route {
 }
 
 class AutomationAPI {
-  private server: any = null;
+  private server: { running: boolean } | null = null;
   private routes: Route[] = [];
   private options: AutomationServerOptions = {
     port: 8765,
@@ -52,10 +52,11 @@ class AutomationAPI {
       return { projects };
     });
 
-    this.addRoute('POST', /^\/api\/projects$/, async (_, body: any) => {
+    this.addRoute('POST', /^\/api\/projects$/, async (_, body: unknown) => {
+      const bodyObj = body as { name: string; path: string };
       const project = await projectStorage.addProject({
-        name: body.name,
-        path: body.path,
+        name: bodyObj.name,
+        path: bodyObj.path,
         lastOpened: new Date(),
       });
       return { project };
@@ -72,8 +73,9 @@ class AutomationAPI {
       return { scene };
     });
 
-    this.addRoute('POST', /^\/api\/scene\/objects$/, async (_, body: any) => {
-      const object = await aiGateway.getSceneGraph().addObject(body.type, body.properties);
+    this.addRoute('POST', /^\/api\/scene\/objects$/, async (_, body: unknown) => {
+      const bodyObj = body as { type: SceneObject['type']; properties?: Partial<SceneObject> };
+      const object = await aiGateway.getSceneGraph().addObject(bodyObj.type, bodyObj.properties);
       return { object };
     });
 
@@ -82,14 +84,15 @@ class AutomationAPI {
       return { success };
     });
 
-    this.addRoute('PATCH', /^\/api\/scene\/objects\/([^/]+)$/, async (params, body: any) => {
-      const success = await aiGateway.getSceneGraph().modifyObject(params[0], body);
+    this.addRoute('PATCH', /^\/api\/scene\/objects\/([^/]+)$/, async (params, body: unknown) => {
+      const success = await aiGateway.getSceneGraph().modifyObject(params[0], body as Partial<SceneObject>);
       return { success };
     });
 
     // Render operations
-    this.addRoute('POST', /^\/api\/render$/, async (_, body: any) => {
-      const result = await aiGateway.getRender().render(body.viewportOnly);
+    this.addRoute('POST', /^\/api\/render$/, async (_, body: unknown) => {
+      const bodyObj = body as { viewportOnly?: boolean };
+      const result = await aiGateway.getRender().render(bodyObj.viewportOnly);
       return { success: !!result };
     });
 
@@ -104,19 +107,22 @@ class AutomationAPI {
     });
 
     // File operations
-    this.addRoute('POST', /^\/api\/files\/save$/, async (_, body: any) => {
+    this.addRoute('POST', /^\/api\/files\/save$/, async (_, body: unknown) => {
       try {
-        const buffer = new TextEncoder().encode(JSON.stringify(body.scene));
-        const path = await opfsStorage.saveBlendFile(body.name, buffer);
+        const bodyObj = body as { scene: unknown; name: string };
+        const encoder = new TextEncoder();
+        const buffer = encoder.encode(JSON.stringify(bodyObj.scene));
+        const path = await opfsStorage.saveBlendFile(bodyObj.name, buffer.buffer);
         return { success: true, path };
       } catch (error) {
         return { success: false, error: String(error) };
       }
     });
 
-    this.addRoute('GET', /^\/api\/files\/load$/, async (_, body: any) => {
+    this.addRoute('GET', /^\/api\/files\/load$/, async (_, body: unknown) => {
       try {
-        const buffer = await opfsStorage.loadBlendFile(body.path);
+        const bodyObj = body as { path: string };
+        const buffer = await opfsStorage.loadBlendFile(bodyObj.path);
         return { success: true, data: buffer };
       } catch (error) {
         return { success: false, error: String(error) };

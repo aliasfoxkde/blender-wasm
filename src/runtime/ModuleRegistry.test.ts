@@ -4,7 +4,7 @@ import { moduleRegistry } from './ModuleRegistry';
 describe('ModuleRegistry', () => {
   beforeEach(() => {
     // Clear all registered modules before each test
-    moduleRegistry.getAll().forEach(m => {
+    moduleRegistry.getAll().forEach(_m => {
       // Can't actually remove, but tests should use unique IDs
     });
   });

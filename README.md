@@ -183,7 +183,7 @@ See [LICENSE](LICENSE) for details.
 
 ## Status
 
-**MVP Complete** - All 12 phases implemented!
+**Web shell scaffold complete; Blender WASM integration pending**
 
 ### Implemented Features
 
