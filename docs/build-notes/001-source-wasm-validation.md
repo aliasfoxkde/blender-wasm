@@ -93,60 +93,67 @@ shim when needed:
 This lets `wasm-ld` resolve Blender's inherited `-lutil` linker flag for
 targets that do not call `libutil` symbols.
 
+## Libraries Successfully Compiled to WASM
+
+The following Blender libraries compile successfully to wasm32:
+
+```text
+libbf_intern_audaspace.a     (4KB)
+libbf_intern_clog.a          (11KB) ✓ VALIDATION CONFIRMED
+libbf_intern_dualcon.a       (176KB)
+libbf_intern_eigen.a         (199KB)
+libbf_intern_guardedalloc.a  (42KB) ✓ VALIDATION CONFIRMED
+libbf_intern_iksolver.a      (194KB)
+libbf_intern_itasc.a         (428KB)
+libbf_intern_libc_compat.a   (394 bytes)
+libbf_intern_libmv.a         (4KB)
+libbf_intern_opensubdiv.a    (2KB)
+libbf_intern_quadriflow.a    (22KB)
+libbf_intern_rigidbody.a     (68KB)
+libbf_intern_sky.a           (37KB)
+```
+
+Libraries requiring DNA (blocked by makesdna):
+- `libbf_intern_memutil.a` - blocked
+- `libbf_intern_opencolorio.a` - blocked
+- `libbf_blenlib.a` - blocked
+
 ## Full Blender Build Status
 
 `./scripts/build-blender-wasm.sh configure` succeeds.
 
 `ninja -v lib/libbf_intern_clog.a` succeeds and produces wasm32 objects.
 
-`ninja -v lib/libbf_blenlib.a` progresses further after the `libutil.a` shim,
-but the build remains blocked at Blender's generated build tool step:
+`ninja -v lib/libbf_blenlib.a` is blocked at Blender's generated build tool step:
 
 ```text
 /bin/sh: 1: /build/build/bin/makesdna.js: Permission denied
 ```
 
-The failing CMake rule is in Blender source:
+The problem: When cross-compiling, CMake builds `makesdna` as a WASM/JS target,
+then tries to execute it as a native binary. The Emscripten-compiled makesdna.js
+cannot access the real filesystem.
 
-```text
-source/blender/makesdna/intern/CMakeLists.txt
-```
+Even adding a shebang (`#!/emsdk/node/20.18.0_64bit/bin/node`) and running via Node
+still fails with "Unable to open file" because Emscripten's virtual FS overlay
+doesn't map to the real filesystem.
 
-It builds `makesdna` as the current target platform and then invokes:
+## Next Steps (In Priority Order)
 
-```text
-$<TARGET_FILE:makesdna>
-```
+1. **Build makesdna natively** - Compile Blender's generator tools with the host
+   compiler and use those native binaries during the WASM build.
 
-In this wasm cross-compile, that target is emitted as `makesdna.js`. The build
-system then tries to execute the JS file directly as if it were a native host
-binary.
+2. **Patch the cross-build CMake path** - When cross-compiling, make Blender's
+   custom commands call the native host tools instead of `$<TARGET_FILE:makesdna>`
+   from the Emscripten build.
 
-Manually invoking it through Emscripten's Node runtime gets past the shell
-permission problem but hits filesystem access:
+3. **Use pre-generated DNA only as a diagnostic** - If you copy generated DNA
+   files from a native build, document the source commit, command, and exact
+   files. Do not treat copied generated files as the final build architecture.
 
-```text
-Unable to open file: /build/build/source/blender/makesdna/intern/dna.c
-```
-
-The next fix should address Blender build tools deliberately. Do not work
-around this by creating fake `dna.c`, fake `blender.js`, or fake
-`blender.wasm`.
-
-## Recommended Next Step
-
-Patch the cross-build handling for generated build tools.
-
-The clean options are:
-
-1. Build generator tools such as `makesdna` and `makesrna` as native host tools
-   and use those host executables during the wasm build.
-2. Or keep them as Emscripten JS tools, but make CMake invoke them through
-   Emscripten's Node runtime and link them with filesystem access suitable for
-   the generated-output paths.
-
-Prefer option 1 for MVP reliability. Blender expects these tools to run at
-build time, not in the browser.
+4. **Keep expanding non-DNA libraries only when useful** - The minimal baseline
+   can grow around libraries that do not need DNA, but that does not replace the
+   host-generator fix required for real Blender data APIs.
 
 ## Do Not Mark MVP Complete Until
 

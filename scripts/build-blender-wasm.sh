@@ -78,6 +78,29 @@ run_build() {
     ls -la "$BLENDER_WASM_DIR/" 2>/dev/null || echo "No artifacts found yet"
 }
 
+# Build a minimal Blender WASM module linked against real Blender source libraries
+run_minimal() {
+    echo "=========================================="
+    echo "Building minimal Blender WASM from real Blender source..."
+    echo "Log file: $LOGS_DIR/minimal.log"
+    echo "=========================================="
+
+    docker compose run --rm blender-wasm-build bash -lc '
+        set -euo pipefail
+        mkdir -p /build-tools
+        cp /blender-wasm/docker/blender-wasm-build/build.sh /build-tools/build.sh
+        chmod +x /build-tools/build.sh
+        exec /build-tools/build.sh minimal
+    ' 2>&1 | tee "$LOGS_DIR/minimal.log"
+
+    echo ""
+    echo "=========================================="
+    echo "Minimal build complete!"
+    echo "=========================================="
+    echo "WASM artifact: $PROJECT_ROOT/public/wasm/blender/"
+    ls -la "$PROJECT_ROOT/public/wasm/blender/"
+}
+
 # Compile and execute a minimal WASM module linked against real Blender source libraries
 run_validate_source() {
     echo "=========================================="
@@ -118,6 +141,9 @@ case "${1:-build}" in
     build)
         run_build
         ;;
+    minimal)
+        run_minimal
+        ;;
     validate-source)
         run_validate_source
         ;;
@@ -128,7 +154,7 @@ case "${1:-build}" in
         run_clean
         ;;
     *)
-        echo "Usage: $0 {configure|build|validate-source|shell|clean}"
+        echo "Usage: $0 {configure|build|minimal|validate-source|shell|clean}"
         exit 1
         ;;
 esac

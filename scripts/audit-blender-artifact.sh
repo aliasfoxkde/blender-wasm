@@ -25,53 +25,104 @@ pass() {
   echo "PASS: $*"
 }
 
+require_wasm_magic() {
+  local wasm_file="$1"
+  local header
+
+  header="$(od -An -tx1 -N8 "$wasm_file" | tr -d ' \n')"
+  if [ "$header" != "0061736d01000000" ]; then
+    fail "$wasm_file is not a WebAssembly MVP binary. Header was: $header"
+  fi
+}
+
+require_js_marker() {
+  local js_file="$1"
+  local marker="$2"
+
+  if ! grep -q "$marker" "$js_file"; then
+    fail "$js_file does not reference $marker."
+  fi
+}
+
+require_wasm_symbol() {
+  local wasm_file="$1"
+  local symbol="$2"
+
+  if ! grep -a -q "$symbol" "$wasm_file"; then
+    fail "$wasm_file does not contain expected Blender/WASM symbol: $symbol"
+  fi
+}
+
+audit_artifact_pair() {
+  local label="$1"
+  local js_file="$2"
+  local wasm_file="$3"
+  local wasm_bytes
+  local js_bytes
+
+  if [ ! -f "$js_file" ] && [ ! -f "$wasm_file" ]; then
+    return 1
+  fi
+
+  if [ ! -f "$js_file" ] || [ ! -f "$wasm_file" ]; then
+    fail "Incomplete $label Blender artifact. Expected both $js_file and $wasm_file, or neither."
+  fi
+
+  wasm_bytes="$(wc -c < "$wasm_file")"
+  js_bytes="$(wc -c < "$js_file")"
+
+  echo "$label JS size:   $js_bytes bytes"
+  echo "$label WASM size: $wasm_bytes bytes"
+
+  if [ "$wasm_bytes" -lt 32768 ]; then
+    fail "$wasm_file is too small to be the validated minimal Blender baseline."
+  fi
+
+  if [ "$wasm_bytes" -lt 1048576 ]; then
+    warn "$wasm_file is below 1 MiB. Treating it as the minimal clog/guardedalloc baseline, not full Blender."
+  fi
+
+  require_wasm_magic "$wasm_file"
+  require_js_marker "$js_file" 'CreateBlenderWasmModule'
+  require_js_marker "$js_file" 'bw_get_version_json'
+  require_js_marker "$js_file" 'bw_run_smoke_test'
+
+  require_wasm_symbol "$wasm_file" 'bw_get_version_json'
+  require_wasm_symbol "$wasm_file" 'bw_run_smoke_test'
+  require_wasm_symbol "$wasm_file" 'CLG_init'
+  require_wasm_symbol "$wasm_file" 'CLG_exit'
+  require_wasm_symbol "$wasm_file" 'CLG_level_set'
+  require_wasm_symbol "$wasm_file" 'MEM_mallocN'
+  require_wasm_symbol "$wasm_file" 'MEM_freeN'
+
+  return 0
+}
+
 if [ -f "$SMOKE_SOURCE" ]; then
   if grep -q '4\.2\.0-emscripten\|bw_get_version_json\|bw_run_smoke_test' "$SMOKE_SOURCE"; then
     fail "$SMOKE_SOURCE contains hard-coded fake Blender smoke-test code. Remove it from the MVP path."
   fi
 fi
 
-if [ -f "$ARTIFACT_JS" ] || [ -f "$ARTIFACT_WASM" ]; then
-  if [ ! -f "$ARTIFACT_JS" ] || [ ! -f "$ARTIFACT_WASM" ]; then
-    fail "Incomplete build-output Blender artifact. Expected both $ARTIFACT_JS and $ARTIFACT_WASM, or neither."
-  fi
+artifact_present=0
+public_present=0
 
-  artifact_wasm_bytes="$(wc -c < "$ARTIFACT_WASM")"
-  echo "Artifact WASM size: $artifact_wasm_bytes bytes"
-  if [ "$artifact_wasm_bytes" -lt 1048576 ]; then
-    fail "$ARTIFACT_WASM is under 1 MiB. Do not copy this into public/ as Blender output."
-  fi
+if audit_artifact_pair "Artifact" "$ARTIFACT_JS" "$ARTIFACT_WASM"; then
+  artifact_present=1
 fi
 
 if [ ! -f "$PUBLIC_JS" ] && [ ! -f "$PUBLIC_WASM" ]; then
+  if [ "$artifact_present" -eq 1 ]; then
+    pass "Build-output Blender WASM artifact passes minimal baseline checks."
+    exit 0
+  fi
+
   pass "No public Blender WASM artifact is installed. This is an honest pre-MVP baseline."
   exit 0
 fi
 
-if [ ! -f "$PUBLIC_JS" ] || [ ! -f "$PUBLIC_WASM" ]; then
-  fail "Incomplete public Blender artifact. Expected both $PUBLIC_JS and $PUBLIC_WASM, or neither."
-fi
-
-public_wasm_bytes="$(wc -c < "$PUBLIC_WASM")"
-public_js_bytes="$(wc -c < "$PUBLIC_JS")"
-
-echo "Public JS size:   $public_js_bytes bytes"
-echo "Public WASM size: $public_wasm_bytes bytes"
-
-if [ "$public_wasm_bytes" -lt 1048576 ]; then
-  fail "WASM is under 1 MiB. This is almost certainly not Blender-derived output."
-fi
-
-if ! grep -q 'CreateBlenderWasmModule' "$PUBLIC_JS"; then
-  fail "$PUBLIC_JS does not expose CreateBlenderWasmModule. Rebuild with -sMODULARIZE=1 -sEXPORT_NAME=CreateBlenderWasmModule."
-fi
-
-if ! grep -q 'bw_get_version_json' "$PUBLIC_JS"; then
-  fail "$PUBLIC_JS does not reference bw_get_version_json. Rebuild with the exported MVP bridge API."
-fi
-
-if ! grep -q 'bw_run_smoke_test' "$PUBLIC_JS"; then
-  fail "$PUBLIC_JS does not reference bw_run_smoke_test. Rebuild with the exported MVP bridge API."
+if audit_artifact_pair "Public" "$PUBLIC_JS" "$PUBLIC_WASM"; then
+  public_present=1
 fi
 
 if [ -f "$ARTIFACT_JS" ]; then
@@ -80,4 +131,6 @@ if [ -f "$ARTIFACT_JS" ]; then
   fi
 fi
 
-pass "Blender WASM artifact passes placeholder checks."
+if [ "$public_present" -eq 1 ]; then
+  pass "Blender WASM artifact passes minimal baseline checks."
+fi

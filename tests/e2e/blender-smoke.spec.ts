@@ -59,15 +59,22 @@ test.describe('Blender WASM Smoke Test', () => {
     await expect(body).toBeVisible();
   });
 
-  test('should enter Blender view and report missing artifact honestly', async ({ page }) => {
+  test('should load Blender WASM artifact successfully', async ({ page }) => {
     await page.goto('/');
 
+    // Wait for the app to load
+    await page.waitForTimeout(3000);
+
+    // Click New Project to trigger Blender load
     const newProject = page.getByRole('button', { name: /New Project/i }).first();
     await expect(newProject).toBeVisible({ timeout: 6000 });
     await newProject.click();
 
-    await expect(page.getByRole('heading', { name: 'Failed to Load' })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/Blender WASM artifact not found/)).toBeVisible();
-    await expect(page.getByText(/scripts\/build-blender-wasm\.sh build/)).toBeVisible();
+    // Wait for Blender runtime to load (dynamically imported, not a script tag)
+    await page.waitForTimeout(5000);
+
+    const smokeStatus = page.getByTestId('blender-smoke-status');
+    await expect(smokeStatus).toBeVisible({ timeout: 15000 });
+    await expect(smokeStatus).toContainText('Real Blender code executed');
   });
 });
