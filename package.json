@@ -19,6 +19,7 @@
     "verify": "pnpm audit:wasm && pnpm typecheck && pnpm lint && pnpm test:run && pnpm build",
     "verify:full": "pnpm verify && pnpm test:e2e",
     "audit:wasm": "bash scripts/audit-blender-artifact.sh",
+    "audit:blenlib": "bash scripts/audit-blenlib-artifact.sh",
     "test:e2e": "playwright test"
   },
   "dependencies": {
