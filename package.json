@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "test:watch": "vitest --watch",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test:run && pnpm build"
+    "verify": "pnpm typecheck && pnpm lint && pnpm test:run && pnpm build",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "idb": "^8.0.0",
