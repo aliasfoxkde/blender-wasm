@@ -2,9 +2,10 @@
 # Build Blender for WebAssembly using Docker
 #
 # Usage:
-#   ./scripts/build-blender-wasm.sh          # Interactive shell in container
-#   ./scripts/build-blender-wasm.sh build   # Run full build
-#   ./scripts/build-blender-wasm.sh clean   # Clean build artifacts
+#   ./scripts/build-blender-wasm.sh configure  # Run CMake configure only
+#   ./scripts/build-blender-wasm.sh build     # Run configure + ninja build
+#   ./scripts/build-blender-wasm.sh shell     # Interactive shell in container
+#   ./scripts/build-blender-wasm.sh clean     # Clean build artifacts
 
 set -e
 
@@ -12,61 +13,64 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$PROJECT_ROOT/docker/blender-wasm-build"
 
+# Artifact and log directories
+ARTIFACTS_DIR="$PROJECT_ROOT/artifacts"
+LOGS_DIR="$ARTIFACTS_DIR/logs"
+BLENDER_WASM_DIR="$ARTIFACTS_DIR/blender-wasm"
+
+mkdir -p "$LOGS_DIR" "$BLENDER_WASM_DIR"
+
 cd "$DOCKER_DIR"
 
-# Source Emscripten in container and run build
+# Source Emscripten in container and run configure
+run_configure() {
+    echo "=========================================="
+    echo "Configuring Blender WASM (CMake)..."
+    echo "Log file: $LOGS_DIR/configure.log"
+    echo "=========================================="
+
+    docker compose run --rm blender-wasm-build bash /build-tools/build.sh configure 2>&1 | tee "$LOGS_DIR/configure.log"
+
+    echo "Configure complete. Log: $LOGS_DIR/configure.log"
+}
+
+# Source Emscripten in container and run full build
 run_build() {
     echo "=========================================="
     echo "Building Blender WASM..."
+    echo "Log file: $LOGS_DIR/build.log"
+    echo "=========================================="
+
+    # Run configure first if not done
+    if [ ! -f "$LOGS_DIR/configure.log" ]; then
+        run_configure
+    fi
+
+    docker compose run --rm blender-wasm-build bash /build-tools/build.sh build 2>&1 | tee "$LOGS_DIR/build.log"
+
+    # Copy artifacts to output directory
+    echo "=========================================="
+    echo "Copying artifacts to $BLENDER_WASM_DIR..."
     echo "=========================================="
 
     docker compose run --rm blender-wasm-build bash -c '
-        set -e
-        source /emsdk/emsdk_env.sh 2>/dev/null || true
+        if [ -d /build/build ]; then
+            cp -r /build/build/lib/*.js /build/build/lib/*.wasm /artifacts/blender-wasm/ 2>/dev/null || true
+            find /build/build -name "blender*.js" -o -name "blender*.wasm" 2>/dev/null | head -10
+        fi
+    ' 2>&1 | tee -a "$LOGS_DIR/build.log"
 
-        BUILD_DIR=/build/build
-        BLENDER_SRC=/build/src
-        OPENIMAGEIO_ROOT=/openimageio-stub
-
-        mkdir -p "$BUILD_DIR"
-        cd "$BUILD_DIR"
-
-        echo "Configuring CMake..."
-        emcmake cmake "$BLENDER_SRC" \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DWITH_OPENSIMAGEIO=ON \
-            -DOPENIMAGEIO_ROOT="$OPENIMAGEIO_ROOT" \
-            -DWITH_CYCLES=OFF \
-            -DWITH_CYCLES_EMBREE=OFF \
-            -DWITH_CYCLES_OSL=OFF \
-            -DWITH_GHOST_X11=OFF \
-            -DWITH_GHOST_WAYLAND=OFF \
-            -DWITH_GHOST_SDL=OFF \
-            -DWITH_PYTHON=OFF \
-            -DWITH_LIBMV=OFF \
-            -DWITH_DOCUMENTATION=OFF \
-            -DWITH_INSTALL=OFF \
-            -DWITH_TESTS=OFF \
-            -DWITH_JACK=OFF \
-            -DWITH_PULSEAUDIO=OFF \
-            -DWITH_PIPEWIRE=OFF
-
-        echo "Building with Ninja..."
-        ninja -j$(nproc)
-
-        echo "=========================================="
-        echo "Build complete!"
-        echo "=========================================="
-        find "$BUILD_DIR" -name "*.wasm" -o -name "*.js" 2>/dev/null | head -20
-    '
+    echo "Build complete!"
+    echo "Artifacts: $BLENDER_WASM_DIR"
+    ls -la "$BLENDER_WASM_DIR/" 2>/dev/null || echo "No artifacts found yet"
 }
 
 # Clean build artifacts
 run_clean() {
     echo "Cleaning build artifacts..."
     docker compose down -v 2>/dev/null || true
-    rm -rf "$DOCKER_DIR/../blender-wasm-cache" 2>/dev/null || true
+    rm -rf "$PROJECT_ROOT/blender-wasm-cache" 2>/dev/null || true
+    rm -rf "$LOGS_DIR" "$BLENDER_WASM_DIR" 2>/dev/null || true
     echo "Clean complete."
 }
 
@@ -77,6 +81,9 @@ run_shell() {
 
 # Main
 case "${1:-build}" in
+    configure)
+        run_configure
+        ;;
     build)
         run_build
         ;;
@@ -87,7 +94,7 @@ case "${1:-build}" in
         run_clean
         ;;
     *)
-        echo "Usage: $0 {build|shell|clean}"
+        echo "Usage: $0 {configure|build|shell|clean}"
         exit 1
         ;;
 esac
