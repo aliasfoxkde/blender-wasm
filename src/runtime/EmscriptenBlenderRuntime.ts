@@ -37,8 +37,6 @@ interface EmscriptenModule {
   onRuntimeInitialized?: () => void;
   onAbort?: (reason: unknown) => void;
   canvas?: HTMLCanvasElement | OffscreenCanvas;
-  TOTAL_MEMORY?: number;
-  TOTAL_STACK?: number;
   noInitialRun?: boolean;
   ccall?: (ident: string, returnType: string | null, argTypes: string[], args: unknown[]) => unknown;
   cwrap?: (ident: string, returnType: string | null, argTypes: string[]) => ((...args: unknown[]) => unknown);
@@ -51,6 +49,9 @@ interface EmscriptenModule {
 }
 
 const ARTIFACT_BASE = '/wasm/blender';
+const MODULE_FACTORY_NAME = 'CreateBlenderWasmModule';
+
+type EmscriptenModuleFactory = (config: Partial<EmscriptenModule>) => Promise<EmscriptenModule>;
 
 class EmscriptenBlenderRuntime {
   private instance: BlenderRuntimeInstance | null = null;
@@ -93,76 +94,27 @@ class EmscriptenBlenderRuntime {
   }
 
   private async loadBlenderModule(canvas?: HTMLCanvasElement): Promise<EmscriptenModule> {
-    // Attempt to load the Emscripten-generated blender.js
-    // This file is produced by the Docker build process
     try {
       const blenderJsUrl = `${ARTIFACT_BASE}/blender.js`;
+      const blenderWasmUrl = `${ARTIFACT_BASE}/blender.wasm`;
 
-      // Fetch the JS loader to get module factory function
-      const response = await fetch(blenderJsUrl, { method: 'HEAD' });
-      if (!response.ok) {
+      const [jsResponse, wasmResponse] = await Promise.all([
+        fetch(blenderJsUrl, { method: 'HEAD' }),
+        fetch(blenderWasmUrl, { method: 'HEAD' }),
+      ]);
+
+      if (!jsResponse.ok || !wasmResponse.ok) {
         throw new Error(
-          `Blender WASM artifact not found at ${blenderJsUrl}.\n` +
+          `Blender WASM artifact not found at ${ARTIFACT_BASE}/.\n` +
           `Run: ./scripts/build-blender-wasm.sh build`
         );
       }
 
-      // Create a script element to load the Emscripten module
-      // The generated module exports a `CreateBlenderWasmModule` factory
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = blenderJsUrl;
-        script.type = 'module';
+      const ModuleFactory = await this.loadModuleFactory(blenderJsUrl);
+      const module = await ModuleFactory(this.createModuleConfig(canvas));
+      this.assertBridgeExports(module);
 
-        script.onload = async () => {
-          try {
-            // The Emscripten-generated module should be available globally
-            // as CreateBlenderWasmModule (or whatever EXPORT_NAME is set to)
-            const ModuleFactory = (globalThis as Record<string, unknown>).CreateBlenderWasmModule;
-            if (typeof ModuleFactory !== 'function') {
-              throw new Error(
-                `Emscripten module factory CreateBlenderWasmModule not found. ` +
-                `The artifact may not be a valid Emscripten output.`
-              );
-            }
-
-            // Configure the module with our options
-            const moduleConfig: Partial<EmscriptenModule> = {
-              locateFile: (filename: string) => {
-                // Emscripten calls this to find the .wasm binary
-                return `${ARTIFACT_BASE}/${filename}`;
-              },
-              print: (message: string) => {
-                console.log(`[Blender] ${message}`);
-              },
-              printErr: (message: string) => {
-                console.error(`[Blender] ${message}`);
-              },
-              canvas: canvas,
-              // Disable initial run - we control when to execute
-              noInitialRun: true,
-              // Memory settings for 8GB support
-              TOTAL_MEMORY: 256 * 1024 * 1024, // 256MB initial, grows with ALLOW_MEMORY_GROWTH
-              TOTAL_STACK: 8 * 1024 * 1024, // 8MB stack
-            };
-
-            // Instantiate the module
-            const module = await ModuleFactory(moduleConfig);
-            resolve(module as EmscriptenModule);
-          } catch (error) {
-            reject(error);
-          }
-        };
-
-        script.onerror = () => {
-          reject(new Error(
-            `Failed to load Blender JS loader from ${blenderJsUrl}.\n` +
-            `Run: ./scripts/build-blender-wasm.sh build`
-          ));
-        };
-
-        document.head.appendChild(script);
-      });
+      return module;
     } catch (error) {
       if (error instanceof Error && error.message.includes('Blender WASM artifact not found')) {
         throw error;
@@ -170,6 +122,76 @@ class EmscriptenBlenderRuntime {
       throw new Error(
         `Failed to load Blender runtime: ${error instanceof Error ? error.message : error}\n` +
         `Ensure the Docker build has produced artifacts at ${ARTIFACT_BASE}/`
+      );
+    }
+  }
+
+  private createModuleConfig(canvas?: HTMLCanvasElement): Partial<EmscriptenModule> {
+    return {
+      locateFile: (filename: string) => `${ARTIFACT_BASE}/${filename}`,
+      print: (message: string) => {
+        console.log(`[Blender] ${message}`);
+      },
+      printErr: (message: string) => {
+        console.error(`[Blender] ${message}`);
+      },
+      canvas,
+      noInitialRun: true,
+    };
+  }
+
+  private async loadModuleFactory(blenderJsUrl: string): Promise<EmscriptenModuleFactory> {
+    try {
+      const imported = await import(/* @vite-ignore */ blenderJsUrl) as Record<string, unknown>;
+      const factory = imported.default ?? imported[MODULE_FACTORY_NAME];
+      if (typeof factory === 'function') {
+        return factory as EmscriptenModuleFactory;
+      }
+    } catch {
+      // Fall back to non-ESM script loading below.
+    }
+
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = blenderJsUrl;
+      script.async = true;
+
+      script.onload = () => {
+        const factory = (globalThis as Record<string, unknown>)[MODULE_FACTORY_NAME];
+        if (typeof factory === 'function') {
+          resolve(factory as EmscriptenModuleFactory);
+          return;
+        }
+
+        reject(new Error(
+          `Emscripten module factory ${MODULE_FACTORY_NAME} not found. ` +
+          `Rebuild with -sMODULARIZE=1 -sEXPORT_NAME=${MODULE_FACTORY_NAME}.`
+        ));
+      };
+
+      script.onerror = () => {
+        reject(new Error(
+          `Blender WASM artifact not found at ${ARTIFACT_BASE}/. ` +
+          `Failed to load Blender JS loader from ${blenderJsUrl}.\n` +
+          `Run: ./scripts/build-blender-wasm.sh build`
+        ));
+      };
+
+      document.head.appendChild(script);
+    });
+  }
+
+  private assertBridgeExports(module: EmscriptenModule): void {
+    const missing = [
+      ['_bw_get_version_json', module._bw_get_version_json],
+      ['_bw_run_smoke_test', module._bw_run_smoke_test],
+      ['UTF8ToString', module.UTF8ToString],
+    ].filter(([, value]) => typeof value !== 'function').map(([name]) => name);
+
+    if (missing.length > 0) {
+      throw new Error(
+        `Blender WASM bridge is missing exports: ${missing.join(', ')}. ` +
+        `Rebuild with the MVP bridge exported.`
       );
     }
   }
@@ -215,19 +237,10 @@ class EmscriptenBlenderRuntime {
         }
       }
 
-      // Fallback: check if runtime initialized
-      if (module.onRuntimeInitialized) {
-        return {
-          success: true,
-          message: 'Blender runtime initialized (smoke test not implemented)',
-          buildInfo: this.instance.buildInfo || undefined,
-        };
-      }
-
       return {
         success: false,
-        message: 'Runtime not fully initialized',
-        error: 'onRuntimeInitialized callback was not called',
+        message: 'Smoke test export returned no result',
+        error: '_bw_run_smoke_test did not return a valid UTF-8 string pointer',
       };
     } catch (error) {
       return {

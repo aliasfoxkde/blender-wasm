@@ -1,6 +1,6 @@
 import { Component, onMount, onCleanup, createSignal, Show } from 'solid-js';
 import type { CapabilityProfile } from '../core/HardwareProfiler';
-import { moduleManager, type LoaderProgress } from '../runtime';
+import { blenderRuntime, type SmokeTestResult } from '../runtime';
 
 interface BlenderViewportProps {
   capabilityProfile: CapabilityProfile | null;
@@ -15,41 +15,26 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
   const [loadStatus, setLoadStatus] = createSignal('Initializing...');
   const [isReady, setIsReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [smokeTest, setSmokeTest] = createSignal<SmokeTestResult | null>(null);
 
   const loadModules = async () => {
     setIsLoading(true);
     setLoadStatus('Checking for Blender artifact...');
 
     try {
-      // Check if artifact exists
-      const blenderModule = moduleManager.getModule('blender');
-      if (!blenderModule) {
-        throw new Error('Blender WASM artifact not registered. Run ./scripts/build-blender-wasm.sh build.');
-      }
-
-      // Check artifact presence via fetch
       setLoadStatus('Loading Blender runtime...');
-      const jsResponse = await fetch(blenderModule.url, { method: 'HEAD' });
-      if (!jsResponse.ok) {
-        throw new Error(
-          `Blender WASM artifact not installed. Run ./scripts/build-blender-wasm.sh build.\n` +
-          `Expected at: ${blenderModule.url}`
-        );
-      }
-
       setLoadProgress(30);
-      setLoadStatus('Initializing Blender bridge...');
-
-      // Load the Blender module
-      await moduleManager.load('blender', {
-        onProgress: (progress: LoaderProgress) => {
-          setLoadProgress(30 + progress.progress * 0.5);
-          setLoadStatus(`Loading ${progress.moduleId}...`);
-        },
-      });
+      await blenderRuntime.load({ canvas: canvasRef });
 
       setLoadProgress(80);
       setLoadStatus('Running smoke test...');
+      const smokeResult = await blenderRuntime.runSmokeTest();
+      setSmokeTest(smokeResult);
+      if (!smokeResult.success) {
+        throw new Error(
+          `Blender smoke test failed: ${smokeResult.error || smokeResult.message}`
+        );
+      }
 
       // Initialize graphics
       await initGraphics();
@@ -180,7 +165,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
 
             <div class="loading-info">
               <span>Graphics: {getCapabilityLabel()}</span>
-              <span>Status: {moduleManager.getState().loadedModules.length > 0 ? 'Loaded' : 'Loading...'}</span>
+              <span>Status: {blenderRuntime.isLoaded() ? 'Loaded' : 'Loading...'}</span>
             </div>
           </div>
         </div>
@@ -209,6 +194,11 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           <div class="status-left">
             <span class="status-indicator online" />
             <span>Blender Web Edition</span>
+            <Show when={smokeTest()}>
+              <span class="status-item" data-testid="blender-smoke-status">
+                Smoke: {smokeTest()?.message}
+              </span>
+            </Show>
           </div>
           <div class="status-right">
             <span class="status-item">

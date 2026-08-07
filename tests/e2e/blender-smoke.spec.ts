@@ -55,13 +55,19 @@ test.describe('Blender WASM Smoke Test', () => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
-    // Click anywhere to dismiss splash if present
     const body = page.locator('body');
-    await body.click();
-    await page.waitForTimeout(500);
+    await expect(body).toBeVisible();
+  });
 
-    // App should still be responsive (no crash)
-    const stillVisible = await body.isVisible();
-    expect(stillVisible).toBeTruthy();
+  test('should enter Blender view and report missing artifact honestly', async ({ page }) => {
+    await page.goto('/');
+
+    const newProject = page.getByRole('button', { name: /New Project/i }).first();
+    await expect(newProject).toBeVisible({ timeout: 6000 });
+    await newProject.click();
+
+    await expect(page.getByRole('heading', { name: 'Failed to Load' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Blender WASM artifact not found/)).toBeVisible();
+    await expect(page.getByText(/scripts\/build-blender-wasm\.sh build/)).toBeVisible();
   });
 });
