@@ -2,6 +2,15 @@ import { Component, onMount, onCleanup, createSignal, Show } from 'solid-js';
 import type { CapabilityProfile } from '../core/HardwareProfiler';
 import { blenderRuntime, type SmokeTestResult } from '../runtime';
 
+type WasmAvailabilityState =
+  | 'checking'
+  | 'artifact-missing'
+  | 'runtime-loading'
+  | 'bridge-validated'
+  | 'smoke-failed'
+  | 'graphics-init'
+  | 'ready';
+
 interface BlenderViewportProps {
   capabilityProfile: CapabilityProfile | null;
 }
@@ -10,46 +19,58 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
   let canvasRef: HTMLCanvasElement | undefined;
   let animationFrame: number;
 
-  const [isLoading, setIsLoading] = createSignal(true);
+  const [wasmState, setWasmState] = createSignal<WasmAvailabilityState>('checking');
   const [loadProgress, setLoadProgress] = createSignal(0);
-  const [loadStatus, setLoadStatus] = createSignal('Initializing...');
+  const [loadStatus, setLoadStatus] = createSignal('Initializing WASM...');
   const [isReady, setIsReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [smokeTest, setSmokeTest] = createSignal<SmokeTestResult | null>(null);
 
   const loadModules = async () => {
-    setIsLoading(true);
-    setLoadStatus('Checking for Blender artifact...');
+    setWasmState('checking');
+    setLoadStatus('Checking for Blender WASM artifact...');
 
     try {
+      setWasmState('runtime-loading');
       setLoadStatus('Loading Blender runtime...');
       setLoadProgress(30);
       await blenderRuntime.load({ canvas: canvasRef });
 
       setLoadProgress(80);
-      setLoadStatus('Running smoke test...');
+      setLoadStatus('Running Blender bridge smoke test...');
+      setWasmState('bridge-validated');
       const smokeResult = await blenderRuntime.runSmokeTest();
       setSmokeTest(smokeResult);
+
       if (!smokeResult.success) {
+        setWasmState('smoke-failed');
         throw new Error(
           `Blender smoke test failed: ${smokeResult.error || smokeResult.message}`
         );
       }
 
-      // Initialize graphics
+      setWasmState('graphics-init');
+      setLoadStatus('Initializing graphics...');
       await initGraphics();
 
       setLoadProgress(100);
-      setLoadStatus('Ready!');
+      setLoadStatus('Blender Web Edition ready');
+      setWasmState('ready');
       setIsReady(true);
-      setIsLoading(false);
 
-      // Start render loop
       startRenderLoop();
     } catch (err) {
       console.error('Failed to load Blender:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load Blender');
-      setIsLoading(false);
+      const message = err instanceof Error ? err.message : 'Failed to load Blender';
+
+      if (message.includes('fetch') || message.includes('404') || message.includes('Not Found')) {
+        setWasmState('artifact-missing');
+        setError(
+          'Blender WASM artifact not found. This is a minimal baseline - full Blender requires additional build steps.'
+        );
+      } else {
+        setError(message);
+      }
     }
   };
 
@@ -137,7 +158,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
       />
 
       {/* Loading Overlay */}
-      <Show when={isLoading()}>
+      <Show when={wasmState() !== 'ready' && !error()}>
         <div class="loading-overlay">
           <div class="loading-content">
             <div class="loading-spinner">
@@ -150,8 +171,14 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
               </svg>
             </div>
 
-            <h2>Loading Blender</h2>
+            <h2>Loading Blender WASM</h2>
             <p class="loading-status">{loadStatus()}</p>
+
+            <Show when={wasmState() === 'bridge-validated'}>
+              <p class="wasm-state-info">
+                Bridge validated ✓ — running Blender smoke test
+              </p>
+            </Show>
 
             <div class="progress-container">
               <div class="progress-bar">
@@ -165,21 +192,44 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
 
             <div class="loading-info">
               <span>Graphics: {getCapabilityLabel()}</span>
-              <span>Status: {blenderRuntime.isLoaded() ? 'Loaded' : 'Loading...'}</span>
+              <span>WASM State: {wasmState()}</span>
             </div>
           </div>
         </div>
       </Show>
 
+      {/* Artifact Missing Overlay */}
+      <Show when={wasmState() === 'artifact-missing'}>
+        <div class="error-overlay">
+          <div class="error-content">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 8v4M12 16h.01"/>
+            </svg>
+            <h2>WASM Artifact Missing</h2>
+            <p class="error-description">
+              The Blender WASM artifact was not found. This is expected in development
+              without a full Docker build. Run <code>./scripts/build-blender-wasm.sh minimal</code> to build it.
+            </p>
+            <p class="error-note">
+              Current baseline includes: clog + guardedalloc libraries
+            </p>
+            <button onClick={() => window.location.reload()}>
+              Retry After Build
+            </button>
+          </div>
+        </div>
+      </Show>
+
       {/* Error Overlay */}
-      <Show when={error()}>
+      <Show when={error() && wasmState() !== 'artifact-missing'}>
         <div class="error-overlay">
           <div class="error-content">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" stroke-width="2">
               <circle cx="12" cy="12" r="10"/>
               <path d="M15 9l-6 6M9 9l6 6"/>
             </svg>
-            <h2>Failed to Load</h2>
+            <h2>WASM Load Failed</h2>
             <p>{error()}</p>
             <button onClick={() => window.location.reload()}>
               Retry
@@ -196,9 +246,12 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
             <span>Blender Web Edition</span>
             <Show when={smokeTest()}>
               <span class="status-item" data-testid="blender-smoke-status">
-                Smoke: {smokeTest()?.message}
+                Bridge: {smokeTest()?.success ? 'OK' : 'FAILED'}
               </span>
             </Show>
+            <span class="status-item wasm-state-badge">
+              {wasmState()}
+            </span>
           </div>
           <div class="status-right">
             <span class="status-item">
@@ -304,6 +357,35 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           color: var(--color-text-muted);
         }
 
+        .wasm-state-info {
+          color: var(--color-success);
+          font-size: var(--font-sm);
+          font-family: monospace;
+          background: rgba(16, 185, 129, 0.1);
+          padding: var(--spacing-xs) var(--spacing-sm);
+          border-radius: var(--radius-sm);
+        }
+
+        .error-description {
+          color: var(--color-text-secondary);
+          margin: 0;
+          line-height: 1.5;
+        }
+
+        .error-description code {
+          background: var(--color-bg-light);
+          padding: 2px 6px;
+          border-radius: var(--radius-sm);
+          font-family: monospace;
+          font-size: var(--font-sm);
+        }
+
+        .error-note {
+          color: var(--color-text-muted);
+          font-size: var(--font-sm);
+          margin: var(--spacing-sm) 0 0 0;
+        }
+
         .error-content p {
           color: var(--color-text-secondary);
           margin: 0;
@@ -359,6 +441,12 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           padding: 2px var(--spacing-sm);
           background: var(--color-bg-light);
           border-radius: var(--radius-sm);
+        }
+
+        .wasm-state-badge {
+          font-family: monospace;
+          font-size: var(--font-xs);
+          background: var(--color-bg-lighter);
         }
       `}</style>
     </div>

@@ -80,5 +80,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Build
-        run: pnpm build
+      - name: Unit tests
+        run: pnpm test:run
+
+      - name: Audit WASM artifact
+        run: pnpm audit:wasm
+
+      # E2E tests require Docker for Blender WASM build
+      # Run locally with: pnpm test:e2e
+      # Note: E2E tests are skipped in CI due to Docker overhead
+      # Consider running nightly or on release branches if Docker is available
