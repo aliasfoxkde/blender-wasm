@@ -5,6 +5,10 @@ services:
       dockerfile: Dockerfile
     image: blender-wasm-build:latest
     container_name: blender-wasm-build
+    cpus: "${BLENDER_WASM_DOCKER_CPUS:-2}"
+    mem_limit: "${BLENDER_WASM_DOCKER_MEMORY:-8g}"
+    environment:
+      BUILD_JOBS: "${BUILD_JOBS:-2}"
     volumes:
       - ../../:/blender-wasm
       - ../../artifacts:/artifacts

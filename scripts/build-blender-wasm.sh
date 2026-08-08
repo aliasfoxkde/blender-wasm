@@ -27,12 +27,23 @@ mkdir -p "$LOGS_DIR" "$BLENDER_WASM_DIR"
 
 cd "$DOCKER_DIR"
 
+export BUILD_JOBS="${BUILD_JOBS:-2}"
+export BLENDER_WASM_DOCKER_CPUS="${BLENDER_WASM_DOCKER_CPUS:-2}"
+export BLENDER_WASM_DOCKER_MEMORY="${BLENDER_WASM_DOCKER_MEMORY:-8g}"
+
+print_resource_limits() {
+    echo "Docker CPU limit: ${BLENDER_WASM_DOCKER_CPUS}"
+    echo "Docker memory limit: ${BLENDER_WASM_DOCKER_MEMORY}"
+    echo "Ninja build jobs: ${BUILD_JOBS}"
+}
+
 # Source Emscripten in container and run configure
 run_configure() {
     echo "=========================================="
     echo "Configuring Blender WASM (CMake)..."
     echo "Log file: $LOGS_DIR/configure.log"
     echo "=========================================="
+    print_resource_limits
 
     docker compose run --rm blender-wasm-build bash -lc '
         set -euo pipefail
@@ -51,6 +62,7 @@ run_build() {
     echo "Building Blender WASM..."
     echo "Log file: $LOGS_DIR/build.log"
     echo "=========================================="
+    print_resource_limits
 
     # Run configure first if not done
     if [ ! -f "$LOGS_DIR/configure.log" ]; then
@@ -88,6 +100,7 @@ run_minimal() {
     echo "Building minimal Blender WASM from real Blender source..."
     echo "Log file: $LOGS_DIR/minimal.log"
     echo "=========================================="
+    print_resource_limits
 
     docker compose run --rm blender-wasm-build bash -lc '
         set -euo pipefail
@@ -111,6 +124,7 @@ run_validate_source() {
     echo "Validating Blender source WASM compilation..."
     echo "Log file: $LOGS_DIR/validate-source.log"
     echo "=========================================="
+    print_resource_limits
 
     docker compose run --rm blender-wasm-build bash -lc '
         set -euo pipefail
@@ -131,6 +145,7 @@ run_docker_mode() {
     echo "Running Blender WASM build mode: $mode"
     echo "Log file: $log_file"
     echo "=========================================="
+    print_resource_limits
 
     docker compose run --rm blender-wasm-build bash -lc "
         set -euo pipefail

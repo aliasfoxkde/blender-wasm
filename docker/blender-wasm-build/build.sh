@@ -33,6 +33,7 @@ HOST_TOOLS_DIR="${HOST_TOOLS_DIR:-/build/host-tools}"
 WASM_SHIM_DIR="${WASM_SHIM_DIR:-/blender-wasm/docker/blender-wasm-build/wasm-shims}"
 WASM_COMMON_FLAGS="${WASM_COMMON_FLAGS:--sUSE_ZLIB=1 -DUSE_STATFS_STATVFS -include sys/statvfs.h -I${WASM_SHIM_DIR}}"
 WASM_LINKER_FLAGS="${WASM_LINKER_FLAGS:--sUSE_ZLIB=1}"
+BUILD_JOBS="${BUILD_JOBS:-2}"
 
 MODE="${1:-build}"
 
@@ -47,6 +48,7 @@ echo "Stub Modules: $STUB_DIR"
 echo "Artifacts: $ARTIFACTS_DIR"
 echo "Host Tools: $HOST_TOOLS_DIR"
 echo "WASM Shims: $WASM_SHIM_DIR"
+echo "Ninja Jobs: $BUILD_JOBS"
 echo "=========================================="
 
 # Blender's Unix CMake platform may add -lutil for build tools such as makesdna.
@@ -162,7 +164,7 @@ build_host_tools() {
     echo "=========================================="
     echo "Building native makesdna and datatoc..."
     echo "=========================================="
-    ninja -v makesdna datatoc \
+    ninja -j"$BUILD_JOBS" -v makesdna datatoc \
         2>&1 | tee "$ARTIFACTS_DIR/logs/host-tools-build.log"
 
     test -x "$HOST_TOOLS_DIR/bin/makesdna"
@@ -216,7 +218,7 @@ build_blenlib() {
     echo "=========================================="
     echo "Building first DNA-dependent wasm library: libbf_blenlib.a"
     echo "=========================================="
-    ninja -v lib/libbf_blenlib.a \
+    ninja -j"$BUILD_JOBS" -v lib/libbf_blenlib.a \
         2>&1 | tee "$ARTIFACTS_DIR/logs/build-bf_blenlib-with-host-tools.log"
 
     echo ""
@@ -287,7 +289,7 @@ build_minimal() {
     echo "=========================================="
 
     # Build the libraries we can compile without DNA
-    ninja -j$(nproc) \
+    ninja -j"$BUILD_JOBS" \
         lib/libbf_intern_clog.a \
         lib/libbf_intern_guardedalloc.a \
         lib/libbf_intern_libc_compat.a \
@@ -353,7 +355,7 @@ validate_source() {
     echo "=========================================="
     echo "Building minimal Blender source libraries..."
     echo "=========================================="
-    ninja -v lib/libbf_intern_clog.a lib/libbf_intern_guardedalloc.a
+    ninja -j"$BUILD_JOBS" -v lib/libbf_intern_clog.a lib/libbf_intern_guardedalloc.a
 
     echo ""
     echo "=========================================="
@@ -469,7 +471,7 @@ if [ "$MODE" = "build" ]; then
     echo "=========================================="
     echo "Running Ninja build..."
     echo "=========================================="
-    ninja -j$(nproc)
+    ninja -j"$BUILD_JOBS"
 
     echo ""
     echo "=========================================="

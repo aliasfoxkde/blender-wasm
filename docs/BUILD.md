@@ -2,12 +2,46 @@
 
 This document describes how to build Blender as a WebAssembly module for the blender-wasm project.
 
+## Reality Check
+
+The current checked-in browser artifacts are not full Blender. They are:
+
+- a minimal bridge linked to real Blender `clog` and `guardedalloc`;
+- an experimental blenlib bridge linked to real `bf_blenlib` and `bf_dna`.
+
+Native Blender scene rendering is not available in the current app. Do not use
+this build path to claim full Blender rendering until a browser test proves real
+Blender/Cycles pixels are produced by WASM.
+
+For the next production build direction, use
+[`REAL_BLENDER_WASM_RECOVERY_PLAN_2026-08-08.md`](REAL_BLENDER_WASM_RECOVERY_PLAN_2026-08-08.md).
+
 ## Prerequisites
 
 - Docker
 - docker-compose
-- ~20GB disk space for build environment
-- ~4GB RAM recommended for parallel builds
+- ~20GB disk space for the current minimal/blenlib build environment
+- much more disk/RAM for full Blender or Cycles builds
+
+## Local Resource Limits
+
+Do not run unconstrained Docker builds on a normal workstation. The wrapper now
+defaults to conservative limits:
+
+```bash
+BUILD_JOBS=2
+BLENDER_WASM_DOCKER_CPUS=2
+BLENDER_WASM_DOCKER_MEMORY=8g
+```
+
+Override those only on a machine that can absorb the load:
+
+```bash
+BUILD_JOBS=4 BLENDER_WASM_DOCKER_CPUS=4 BLENDER_WASM_DOCKER_MEMORY=16g ./scripts/build-blender-wasm.sh blenlib-module
+```
+
+Full Blender/Cycles production builds should run in CI or on a self-hosted
+builder with explicit CPU, memory, swap, and disk budgets.
 
 ## Quick Start
 
@@ -30,7 +64,7 @@ This builds the Emscripten-based build environment with all dependencies.
 ./build.sh
 
 # Or run build directly
-./scripts/build-blender-wasm.sh build
+BUILD_JOBS=2 BLENDER_WASM_DOCKER_CPUS=2 BLENDER_WASM_DOCKER_MEMORY=8g ./scripts/build-blender-wasm.sh build
 ```
 
 ### 3. Locate Output

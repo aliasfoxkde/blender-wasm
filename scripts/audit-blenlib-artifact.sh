@@ -10,6 +10,11 @@ DNA_PATH="${DNA_PATH:-/build/build/lib/libbf_dna.a}"
 if [ "${BLENDER_WASM_AUDIT_IN_DOCKER:-0}" != "1" ]; then
   PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   if [ ! -x /emsdk/upstream/emscripten/emar ] || [ ! -f "$BLENLIB_PATH" ] || [ ! -f "$DNA_PATH" ]; then
+    if [ "${BLENDER_WASM_ALLOW_DOCKER:-0}" != "1" ]; then
+      echo "SKIP: blenlib archive audit needs Emscripten tools and build archives." >&2
+      echo "Set BLENDER_WASM_ALLOW_DOCKER=1 to run the Docker-backed audit explicitly." >&2
+      exit 0
+    fi
     echo "Running blenlib archive audit inside Docker..."
     cd "$PROJECT_ROOT/docker/blender-wasm-build"
     exec docker compose run --rm blender-wasm-build bash -lc '

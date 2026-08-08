@@ -53,16 +53,17 @@ pnpm exec playwright test tests/e2e/blender-smoke.spec.ts --project=chromium --w
 
 ## Corrected Audit Findings
 
-### The web app did not render because the viewport drew nothing
+### The web app must not fake Blender rendering
 
 The prior claim that a grey/empty main body was expected was not acceptable.
-`BlenderViewport.tsx` had a valid WebGL context and then only cleared the
-canvas every frame. A visible baseline preview now renders a grid, axes, and a
-rotating wire cube after the minimal Blender bridge validates.
+`BlenderViewport.tsx` previously had a valid WebGL context and then only
+cleared or drew browser-side placeholder graphics. That was misleading because
+it looked like a viewport while no Blender scene renderer was present.
 
-This preview is not Blender scene rendering. It is a browser-side WebGL
-baseline that proves the app is visually alive while the real Blender runtime
-is still minimal.
+The current rule is: do not render a fake grid, cube, axes, or WebGL preview in
+the Blender viewport. Until native Blender rendering exists, the app must show
+diagnostics only and explicitly state that native Blender scene rendering is not
+in this build yet.
 
 ### `makesdna` is not fundamentally blocked
 
