@@ -91,12 +91,14 @@ test.describe('Blender WASM Smoke Test', () => {
 
     const diagnostics = page.getByTestId('blender-runtime-diagnostics');
     await expect(diagnostics).toBeVisible({ timeout: 15000 });
-    await expect(diagnostics).toContainText('Real Blender WASM modules loaded');
+    await expect(diagnostics).toContainText('Compiled Blender WASM baseline loaded');
     await expect(diagnostics).toContainText('bf_blenlib');
     await expect(diagnostics).toContainText('bf_dna');
     await expect(diagnostics).toContainText('Native Blender scene rendering is not in this build yet');
 
     const hash = page.getByTestId('blenlib-hash');
     await expect(hash).toHaveText(/^\d+$/);
+
+    await expect(page.locator('canvas')).toHaveCount(0);
   });
 });

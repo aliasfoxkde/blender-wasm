@@ -3,8 +3,9 @@ import { render } from 'solid-js/web';
 import App from './App';
 import './styles/global.css';
 
-// Register service worker for PWA
-if ('serviceWorker' in navigator) {
+// Register service worker only for production builds. In dev, vite-plugin-pwa
+// does not generate the service worker assets and Vite should not request them.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((registration) => {
       console.log('SW registered:', registration.scope);

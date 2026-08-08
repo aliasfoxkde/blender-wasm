@@ -1,4 +1,4 @@
-import { Component, onMount, onCleanup, createSignal, For, Show } from 'solid-js';
+import { Component, onMount, createSignal, For, Show } from 'solid-js';
 import type { CapabilityProfile } from '../core/HardwareProfiler';
 import {
   blenderRuntime,
@@ -15,29 +15,13 @@ type WasmAvailabilityState =
   | 'blenlib-loading'
   | 'blenlib-validated'
   | 'smoke-failed'
-  | 'graphics-init'
   | 'ready';
 
 interface BlenderViewportProps {
   capabilityProfile: CapabilityProfile | null;
 }
 
-type ViewportGL = WebGLRenderingContext | WebGL2RenderingContext;
-
-interface PreviewScene {
-  gl: ViewportGL;
-  program: WebGLProgram;
-  buffer: WebGLBuffer;
-  positionLocation: number;
-  colorLocation: number;
-  stride: number;
-}
-
 export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
-  let canvasRef: HTMLCanvasElement | undefined;
-  let animationFrame: number;
-  let previewScene: PreviewScene | null = null;
-
   const [wasmState, setWasmState] = createSignal<WasmAvailabilityState>('checking');
   const [loadProgress, setLoadProgress] = createSignal(0);
   const [loadStatus, setLoadStatus] = createSignal('Initializing WASM...');
@@ -56,7 +40,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
       setWasmState('runtime-loading');
       setLoadStatus('Loading Blender runtime...');
       setLoadProgress(30);
-      await blenderRuntime.load({ canvas: canvasRef });
+      await blenderRuntime.load();
 
       setLoadProgress(80);
       setLoadStatus('Running Blender bridge smoke test...');
@@ -89,16 +73,10 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
       setBlenlibHash(hash);
       setWasmState('blenlib-validated');
 
-      setWasmState('graphics-init');
-      setLoadStatus('Initializing graphics...');
-      await initGraphics();
-
       setLoadProgress(100);
       setLoadStatus('Blender Web Edition ready');
       setWasmState('ready');
       setIsReady(true);
-
-      startRenderLoop();
     } catch (err) {
       console.error('Failed to load Blender:', err);
       const message = err instanceof Error ? err.message : 'Failed to load Blender';
@@ -118,213 +96,6 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
     loadModules();
   });
 
-  onCleanup(() => {
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame);
-    }
-    if (previewScene) {
-      previewScene.gl.deleteBuffer(previewScene.buffer);
-      previewScene.gl.deleteProgram(previewScene.program);
-      previewScene = null;
-    }
-  });
-
-  const initGraphics = async () => {
-    if (!canvasRef) return;
-
-    const profile = props.capabilityProfile;
-    const gpu = profile?.gpu;
-
-    // Try WebGPU first, fall back to WebGL
-    if (gpu?.webgpu && navigator.gpu) {
-      try {
-        const adapter = await navigator.gpu.requestAdapter();
-        if (adapter) {
-          await adapter.requestDevice();
-          const context = canvasRef.getContext('webgpu');
-          if (context) {
-            console.log('Using WebGPU');
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('WebGPU initialization failed, falling back to WebGL:', e);
-      }
-    }
-
-    // Fall back to WebGL
-    const glOptions: WebGLContextAttributes = {
-      antialias: true,
-      preserveDrawingBuffer: true,
-    };
-    const gl = canvasRef.getContext('webgl2', glOptions) || canvasRef.getContext('webgl', glOptions);
-    if (gl) {
-      console.log('Using WebGL');
-      configureWebGL(gl);
-      return;
-    }
-
-    console.error('No graphics context available');
-    setError('No graphics context available');
-  };
-
-  const configureWebGL = (gl: WebGLRenderingContext | WebGL2RenderingContext) => {
-    gl.disable(gl.DEPTH_TEST);
-    gl.disable(gl.CULL_FACE);
-    gl.clearColor(0.055, 0.06, 0.07, 1.0);
-    previewScene = createPreviewScene(gl);
-  };
-
-  const createShader = (gl: ViewportGL, type: number, source: string) => {
-    const shader = gl.createShader(type);
-    if (!shader) {
-      throw new Error('Unable to create WebGL shader');
-    }
-
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      const info = gl.getShaderInfoLog(shader) || 'unknown shader error';
-      gl.deleteShader(shader);
-      throw new Error(`WebGL shader compile failed: ${info}`);
-    }
-
-    return shader;
-  };
-
-  const createPreviewScene = (gl: ViewportGL): PreviewScene => {
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, `
-      attribute vec2 a_position;
-      attribute vec3 a_color;
-      varying vec3 v_color;
-
-      void main() {
-        gl_Position = vec4(a_position, 0.0, 1.0);
-        v_color = a_color;
-      }
-    `);
-    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, `
-      precision mediump float;
-      varying vec3 v_color;
-
-      void main() {
-        gl_FragColor = vec4(v_color, 1.0);
-      }
-    `);
-    const program = gl.createProgram();
-    if (!program) {
-      throw new Error('Unable to create WebGL program');
-    }
-
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    gl.deleteShader(vertexShader);
-    gl.deleteShader(fragmentShader);
-
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      const info = gl.getProgramInfoLog(program) || 'unknown link error';
-      gl.deleteProgram(program);
-      throw new Error(`WebGL program link failed: ${info}`);
-    }
-
-    const buffer = gl.createBuffer();
-    if (!buffer) {
-      gl.deleteProgram(program);
-      throw new Error('Unable to create WebGL buffer');
-    }
-
-    return {
-      gl,
-      program,
-      buffer,
-      positionLocation: gl.getAttribLocation(program, 'a_position'),
-      colorLocation: gl.getAttribLocation(program, 'a_color'),
-      stride: 5 * Float32Array.BYTES_PER_ELEMENT,
-    };
-  };
-
-  const resizeCanvasToDisplaySize = () => {
-    if (!canvasRef) return;
-
-    const width = Math.max(1, Math.floor(canvasRef.clientWidth * window.devicePixelRatio));
-    const height = Math.max(1, Math.floor(canvasRef.clientHeight * window.devicePixelRatio));
-    if (canvasRef.width !== width || canvasRef.height !== height) {
-      canvasRef.width = width;
-      canvasRef.height = height;
-    }
-  };
-
-  const buildPreviewVertices = () => {
-    const vertices: number[] = [];
-    const addLine = (
-      ax: number,
-      ay: number,
-      bx: number,
-      by: number,
-      color: [number, number, number]
-    ) => {
-      vertices.push(ax, ay, color[0], color[1], color[2], bx, by, color[0], color[1], color[2]);
-    };
-
-    const gridColor: [number, number, number] = [0.19, 0.22, 0.26];
-    const axisX: [number, number, number] = [0.86, 0.22, 0.24];
-    const axisY: [number, number, number] = [0.28, 0.68, 0.34];
-    for (let i = -10; i <= 10; i += 1) {
-      const p = i / 10;
-      addLine(-0.92, p * 0.72, 0.92, p * 0.72, i === 0 ? axisX : gridColor);
-      addLine(p * 0.92, -0.72, p * 0.92, 0.72, i === 0 ? axisY : gridColor);
-    }
-
-    return new Float32Array(vertices);
-  };
-
-  const renderPreviewScene = () => {
-    if (!previewScene || !canvasRef) return;
-
-    const { gl, program, buffer, positionLocation, colorLocation, stride } = previewScene;
-    resizeCanvasToDisplaySize();
-    gl.viewport(0, 0, canvasRef.width, canvasRef.height);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    const vertices = buildPreviewVertices();
-    gl.useProgram(program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
-
-    gl.enableVertexAttribArray(positionLocation);
-    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, stride, 0);
-    gl.enableVertexAttribArray(colorLocation);
-    gl.vertexAttribPointer(
-      colorLocation,
-      3,
-      gl.FLOAT,
-      false,
-      stride,
-      2 * Float32Array.BYTES_PER_ELEMENT
-    );
-    gl.drawArrays(gl.LINES, 0, vertices.length / 5);
-  };
-
-  const startRenderLoop = () => {
-    const render = () => {
-      if (!isReady()) return;
-
-      if (previewScene) {
-        renderPreviewScene();
-      } else {
-        const gl = canvasRef?.getContext('webgl2') || canvasRef?.getContext('webgl');
-        if (gl) {
-          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        }
-      }
-
-      animationFrame = requestAnimationFrame(render);
-    };
-    animationFrame = requestAnimationFrame(render);
-  };
-
   const getCapabilityLabel = () => {
     const gpu = props.capabilityProfile?.gpu;
     if (!gpu) return 'Unknown';
@@ -335,12 +106,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
 
   return (
     <div class="viewport-container">
-      <canvas
-        ref={canvasRef}
-        class="viewport-canvas"
-        width={window.innerWidth}
-        height={window.innerHeight}
-      />
+      <div class="viewport-empty-state" aria-hidden="true" />
 
       {/* Loading Overlay */}
       <Show when={wasmState() !== 'ready' && !error()}>
@@ -382,7 +148,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
             </div>
 
             <div class="loading-info">
-              <span>Graphics: {getCapabilityLabel()}</span>
+              <span>Browser GPU: {getCapabilityLabel()}</span>
               <span>WASM State: {wasmState()}</span>
             </div>
           </div>
@@ -434,7 +200,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
         <div class="runtime-diagnostics" data-testid="blender-runtime-diagnostics">
           <div class="diagnostics-header">
             <span class="status-indicator online" />
-            <span>Real Blender WASM modules loaded</span>
+            <span>Compiled Blender WASM baseline loaded</span>
           </div>
           <div class="diagnostics-grid">
             <div>
@@ -487,7 +253,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           </div>
           <div class="status-right">
             <span class="status-item">
-              {getCapabilityLabel()}
+              Browser GPU: {getCapabilityLabel()}
             </span>
           </div>
         </div>
@@ -501,12 +267,13 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           overflow: hidden;
         }
 
-        .viewport-canvas {
+        .viewport-empty-state {
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
+          background: var(--color-bg-darker);
         }
 
         .runtime-diagnostics {
