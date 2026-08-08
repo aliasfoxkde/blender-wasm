@@ -103,7 +103,7 @@ class StreamingCompiler {
     };
   }
 
-  private notifyUpdate(task: CompilationTask): void {
+  private notifyUpdate(_task: CompilationTask): void {
     // Could emit events here for progress UI
   }
 

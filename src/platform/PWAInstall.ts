@@ -12,9 +12,9 @@ class PWAInstallManager {
   private onPromptListeners: Array<() => void> = [];
 
   init(): void {
-    window.addEventListener('beforeinstallprompt', (e: any) => {
+    window.addEventListener('beforeinstallprompt', (e: Event) => {
       e.preventDefault();
-      this.deferredPrompt = e as PWAInstallPromptEvent;
+      this.deferredPrompt = e as unknown as PWAInstallPromptEvent;
       this.onPromptListeners.forEach(listener => listener());
     });
 

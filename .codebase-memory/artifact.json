@@ -1,0 +1,11 @@
+{
+    "schema_version": 1,
+    "commit": "5285456a6eb8d6ccb6bea5c226d77a7a96be6895",
+    "indexed_at": "2026-08-07T18:05:17Z",
+    "project": "nas-Temp-repos-blender-wasm",
+    "nodes": 1120,
+    "edges": 2736,
+    "original_size": 2490368,
+    "compressed_size": 210645,
+    "compression_level": 9
+}

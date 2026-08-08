@@ -567,6 +567,90 @@ Potential additions include:
 
 ---
 
+# Appendix: Building Blender WASM
+
+## Why Docker?
+
+Blender's build system has deeply coupled dependencies that make cross-compilation to WebAssembly complex:
+
+- **System library mixing**: CMake mixes host x86_64 libraries with Emscripten wasm32 targets
+- **Header isolation**: WebAssembly needs its own sysroot, not host headers
+- **Dependency chain**: Image libraries (libjpeg, libpng, etc.) must be wasm32, not x86_64
+
+The Docker approach ensures a clean, reproducible build environment with proper toolchain isolation.
+
+## Docker Build Environment
+
+Located at `docker/blender-wasm-build/`:
+
+```
+docker/blender-wasm-build/
+├── Dockerfile           # Multi-stage build image
+├── docker-compose.yml   # Container orchestration
+├── build.sh           # Build script
+├── OpenImageIO-stub/  # OpenImageIO compatibility stub
+│   ├── include/       # Header files
+│   └── build/         # Pre-built stub library
+└── README.md          # Detailed documentation
+```
+
+## Quick Start
+
+```bash
+# Build the Docker image
+cd docker/blender-wasm-build
+docker compose build
+
+# Run interactive build
+docker compose run --rm blender-wasm-build bash
+# Then inside: ./build.sh
+
+# Or run build directly
+./scripts/build-blender-wasm.sh build
+```
+
+## Build Output
+
+After successful build, WASM binaries are mounted to host at:
+- `/blender-wasm/docker/blender-wasm-build/build/` - Build artifacts
+
+## Key Build Options
+
+| Option | Value | Notes |
+|--------|-------|-------|
+| `WITH_OPENSIMAGEIO` | ON | OpenImageIO support |
+| `WITH_PYTHON` | OFF | Smaller build, no scripting |
+| `WITH_CYCLES` | OFF | Requires Embree (complex) |
+| `WITH_GHOST_*` | OFF | No GUI, headless WASM |
+
+## Memory64 Support
+
+WebAssembly 3.0 Memory64 provides 8GB+ memory addressing:
+
+```javascript
+const memory = new WebAssembly.Memory({
+  initial: 256,   // 16MB initial
+  maximum: 32768, // 2GB - adjust as needed
+  shared: false,
+});
+```
+
+## Troubleshooting
+
+### "bits/libc-header-start.h not found"
+System headers mixing with Emscripten sysroot. Use Docker.
+
+### Build hangs or OOM
+Reduce parallelism: `ninja -j1` inside container.
+
+### Cache corruption
+```bash
+docker compose down -v
+docker compose build --no-cache
+```
+
+---
+
 ## Overall Assessment
 
 I think this is ambitious but technically coherent if it's approached as a **multi-year platform project** rather than a straightforward port. The key to success is resisting the temptation to replicate the desktop application byte-for-byte. Instead, use Blender as the computational foundation while redesigning everything around it—the launcher, update mechanism, storage model, extension system, AI interfaces, and user experience—to take advantage of what the web platform now offers. That approach creates something that complements desktop Blender rather than simply imitating it.

@@ -23,7 +23,7 @@ interface ProfileDB {
 const DB_NAME = 'blender-wasm-profiles';
 const DB_VERSION = 1;
 
-class ProfileStorage {
+export class ProfileStorage {
   private db: IDBPDatabase<ProfileDB> | null = null;
 
   async init(): Promise<void> {
@@ -121,7 +121,8 @@ class ProfileStorage {
     const db = await this.ensureInitialized();
     const active = await db.get('activeProfile', 'id');
     if (!active) return null;
-    return this.getProfile(active.id) || null;
+    const profile = await this.getProfile(active.id);
+    return profile ?? null;
   }
 
   async updateSettings(profileId: string, settings: Record<string, unknown>): Promise<void> {

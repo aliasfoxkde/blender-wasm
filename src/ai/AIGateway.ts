@@ -62,6 +62,51 @@ export interface AICommand {
   context?: Record<string, unknown>;
 }
 
+// Context type definitions for type-safe access
+export interface SceneAddContext {
+  type: SceneObject['type'];
+  properties?: Partial<SceneObject>;
+}
+
+export interface SceneSelectContext {
+  id: string;
+}
+
+export interface ObjectGetContext {
+  id: string;
+}
+
+export interface ObjectModifyContext {
+  id: string;
+  changes: Partial<SceneObject>;
+}
+
+export interface ObjectDeleteContext {
+  id: string;
+}
+
+export interface ObjectDuplicateContext {
+  id: string;
+}
+
+export interface MaterialCreateContext {
+  name: string;
+}
+
+export interface RenderStartContext {
+  viewportOnly?: boolean;
+}
+
+export interface AnimationFrameContext {
+  frame: number;
+}
+
+export interface AnimationKeyframeContext {
+  objectId: string;
+  frame: number;
+  properties: string[];
+}
+
 export interface AIResponse {
   success: boolean;
   result?: unknown;
@@ -75,23 +120,23 @@ class AISceneGraph {
     return [];
   }
 
-  async getObject(id: string): Promise<SceneObject | null> {
+  async getObject(_id: string): Promise<SceneObject | null> {
     return null;
   }
 
-  async addObject(type: SceneObject['type'], properties?: Partial<SceneObject>): Promise<SceneObject | null> {
+  async addObject(_type: SceneObject['type'], _properties?: Partial<SceneObject>): Promise<SceneObject | null> {
     return null;
   }
 
-  async removeObject(id: string): Promise<boolean> {
+  async removeObject(_id: string): Promise<boolean> {
     return false;
   }
 
-  async modifyObject(id: string, changes: Partial<SceneObject>): Promise<boolean> {
+  async modifyObject(_id: string, _changes: Partial<SceneObject>): Promise<boolean> {
     return false;
   }
 
-  async selectObject(id: string): Promise<boolean> {
+  async selectObject(_id: string): Promise<boolean> {
     return false;
   }
 
@@ -103,11 +148,11 @@ class AISceneGraph {
     return [];
   }
 
-  async duplicateObject(id: string): Promise<SceneObject | null> {
+  async duplicateObject(_id: string): Promise<SceneObject | null> {
     return null;
   }
 
-  async parentObject(childId: string, parentId: string | null): Promise<boolean> {
+  async parentObject(_childId: string, _parentId: string | null): Promise<boolean> {
     return false;
   }
 }
@@ -118,26 +163,26 @@ class AIMaterialManager {
     return [];
   }
 
-  async createMaterial(name: string): Promise<Material | null> {
+  async createMaterial(_name: string): Promise<Material | null> {
     return null;
   }
 
-  async assignMaterial(objectId: string, materialId: string): Promise<boolean> {
+  async assignMaterial(_objectId: string, _materialId: string): Promise<boolean> {
     return false;
   }
 
-  async updateMaterialNode(materialId: string, nodeId: string, inputs: Record<string, unknown>): Promise<boolean> {
+  async updateMaterialNode(_materialId: string, _nodeId: string, _inputs: Record<string, unknown>): Promise<boolean> {
     return false;
   }
 }
 
 // Rendering API
 class AIRenderEngine {
-  async render(viewportOnly: boolean = false): Promise<ArrayBuffer | null> {
+  async render(_viewportOnly: boolean = false): Promise<ArrayBuffer | null> {
     return null;
   }
 
-  async setRenderSettings(settings: RenderSettings): Promise<boolean> {
+  async setRenderSettings(_settings: RenderSettings): Promise<boolean> {
     return false;
   }
 
@@ -157,19 +202,19 @@ export interface RenderSettings {
 
 // Animation API
 class AIAnimation {
-  async getKeyframes(frame: number): Promise<unknown[]> {
+  async getKeyframes(_frame: number): Promise<unknown[]> {
     return [];
   }
 
-  async setKeyframe(objectId: string, frame: number, properties: string[]): Promise<boolean> {
+  async setKeyframe(_objectId: string, _frame: number, _properties: string[]): Promise<boolean> {
     return false;
   }
 
-  async play(start: number, end: number): Promise<void> {}
+  async play(_start: number, _end: number): Promise<void> {}
 
   async stop(): Promise<void> {}
 
-  async setFrame(frame: number): Promise<void> {}
+  async setFrame(_frame: number): Promise<void> {}
 }
 
 // Main AI Gateway
@@ -191,20 +236,22 @@ class AIGateway {
 
   private registerDefaultHandlers() {
     // Scene operations
-    this.registerHandler('scene.get', async (cmd) => ({
+    this.registerHandler('scene.get', async (_cmd) => ({
       success: true,
       result: await this.sceneGraph.getScene()
     }));
 
     this.registerHandler('scene.add', async (cmd) => {
-      const { type, properties } = cmd.context as any;
-      const obj = await this.sceneGraph.addObject(type, properties);
+      const ctx = cmd.context as SceneAddContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const obj = await this.sceneGraph.addObject(ctx.type, ctx.properties);
       return { success: !!obj, result: obj };
     });
 
     this.registerHandler('scene.select', async (cmd) => {
-      const { id } = cmd.context as any;
-      const success = await this.sceneGraph.selectObject(id);
+      const ctx = cmd.context as SceneSelectContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const success = await this.sceneGraph.selectObject(ctx.id);
       return { success };
     });
 
@@ -215,26 +262,30 @@ class AIGateway {
 
     // Object operations
     this.registerHandler('object.get', async (cmd) => {
-      const { id } = cmd.context as any;
-      const obj = await this.sceneGraph.getObject(id);
+      const ctx = cmd.context as ObjectGetContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const obj = await this.sceneGraph.getObject(ctx.id);
       return { success: !!obj, result: obj };
     });
 
     this.registerHandler('object.modify', async (cmd) => {
-      const { id, changes } = cmd.context as any;
-      const success = await this.sceneGraph.modifyObject(id, changes);
+      const ctx = cmd.context as ObjectModifyContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const success = await this.sceneGraph.modifyObject(ctx.id, ctx.changes);
       return { success };
     });
 
     this.registerHandler('object.delete', async (cmd) => {
-      const { id } = cmd.context as any;
-      const success = await this.sceneGraph.removeObject(id);
+      const ctx = cmd.context as ObjectDeleteContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const success = await this.sceneGraph.removeObject(ctx.id);
       return { success };
     });
 
     this.registerHandler('object.duplicate', async (cmd) => {
-      const { id } = cmd.context as any;
-      const obj = await this.sceneGraph.duplicateObject(id);
+      const ctx = cmd.context as ObjectDuplicateContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const obj = await this.sceneGraph.duplicateObject(ctx.id);
       return { success: !!obj, result: obj };
     });
 
@@ -245,14 +296,16 @@ class AIGateway {
     }));
 
     this.registerHandler('material.create', async (cmd) => {
-      const { name } = cmd.context as any;
-      const mat = await this.materials.createMaterial(name);
+      const ctx = cmd.context as MaterialCreateContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const mat = await this.materials.createMaterial(ctx.name);
       return { success: !!mat, result: mat };
     });
 
     // Render operations
     this.registerHandler('render.start', async (cmd) => {
-      const { viewportOnly } = cmd.context as any;
+      const ctx = cmd.context as RenderStartContext | undefined;
+      const viewportOnly = ctx?.viewportOnly ?? false;
       const result = await this.render.render(viewportOnly);
       return { success: !!result, result: result ? 'rendered' : null };
     });
@@ -264,14 +317,16 @@ class AIGateway {
 
     // Animation operations
     this.registerHandler('animation.frame', async (cmd) => {
-      const { frame } = cmd.context as any;
-      await this.animation.setFrame(frame);
+      const ctx = cmd.context as AnimationFrameContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      await this.animation.setFrame(ctx.frame);
       return { success: true };
     });
 
     this.registerHandler('animation.keyframe', async (cmd) => {
-      const { objectId, frame, properties } = cmd.context as any;
-      const success = await this.animation.setKeyframe(objectId, frame, properties);
+      const ctx = cmd.context as AnimationKeyframeContext | undefined;
+      if (!ctx) return { success: false, error: 'Missing context' };
+      const success = await this.animation.setKeyframe(ctx.objectId, ctx.frame, ctx.properties);
       return { success };
     });
   }

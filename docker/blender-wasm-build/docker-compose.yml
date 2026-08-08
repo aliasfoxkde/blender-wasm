@@ -1,0 +1,24 @@
+services:
+  blender-wasm-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: blender-wasm-build:latest
+    container_name: blender-wasm-build
+    volumes:
+      - ../../:/blender-wasm
+      - ../../artifacts:/artifacts
+      - blender-cache:/build
+    working_dir: /build
+    command: >
+      bash -c "
+        mkdir -p /build-tools &&
+        cp /blender-wasm/docker/blender-wasm-build/build.sh /build-tools/build.sh &&
+        chmod +x /build-tools/build.sh &&
+        echo 'Blender source: /build/src' &&
+        ls /build/src/ 2>/dev/null | head -5 &&
+        echo 'Ready. Run: ./build-tools/build.sh configure|build'
+      "
+
+volumes:
+  blender-cache:

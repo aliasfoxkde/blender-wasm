@@ -6,7 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **next-generation web-native Blender distribution** — a progressive web application (PWA) that delivers Blender in the browser via WebAssembly. The philosophy is "Build the best possible Blender experience using modern web architecture" rather than simply "Run Blender in a browser."
 
-**Current State**: Early planning phase. No source code exists yet. The authoritative reference is `docs/PLANNING.md`.
+**Current State**: MVP implementation phase. Core platform, testing framework, and documentation are in place.
+
+## Build Commands
+
+```bash
+pnpm install          # Install dependencies
+pnpm dev             # Start development server
+pnpm build           # Build for production
+pnpm test            # Run tests (watch mode)
+pnpm test:run        # Run tests once
+pnpm test:coverage   # Run tests with coverage
+pnpm lint            # Run ESLint
+pnpm typecheck       # Run TypeScript checks
+```
 
 ## Architecture
 
@@ -16,10 +29,10 @@ Cloudflare Pages (static hosting)
          ▼
 ┌─────────────────────────────────┐
 │         Browser Runtime          │
-│  Web Shell | WASM Loader         │
-│  Module Manager | Asset Cache    │
-│  Plugin Manager | AI Gateway     │
-│  Local API                       │
+│  Web Shell (SolidJS) | PWA     │
+│  Module Manager | WASM Loader  │
+│  Plugin Manager | AI Gateway   │
+│  Local API | Automation API     │
 └──────────────┬──────────────────┘
                │ (dynamically loaded)
                ▼
@@ -31,20 +44,37 @@ Cloudflare Pages (static hosting)
 └─────────────────────────────────┘
 ```
 
-## Planned Technology Stack
+## Technology Stack
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React + Vite + TypeScript (or SolidJS) |
+| Frontend | SolidJS + TypeScript + Vite |
 | Styling | Tailwind CSS + CSS variables |
-| State | Zustand or Redux Toolkit |
+| State | SolidJS Signals/Stores |
 | Build | Vite |
-| PWA | Workbox |
+| PWA | Workbox (Service Worker) |
 | Runtime | WebAssembly + Emscripten |
 | Graphics | WebGPU with WebGL fallback |
 | Storage | OPFS + IndexedDB + Cache Storage |
 | Hosting | Cloudflare Pages |
-| Testing | Playwright + Vitest |
+| Testing | Vitest + happy-dom |
+
+## Source Structure
+
+```
+src/
+├── ai/           # AI Gateway and AI Service
+├── auth/         # Authentication (Guest/Local/Cloud)
+├── collaboration/ # Real-time collaboration
+├── components/   # SolidJS UI components
+├── core/         # Hardware profiler
+├── platform/     # PWA, Download Manager, Service Worker
+├── plugins/      # Plugin system
+├── runtime/      # Module Registry and Manager
+├── shell/        # Shell components (AIAssistant, Gallery)
+├── storage/      # IndexedDB/OPFS storage
+└── utils/        # Utilities
+```
 
 ## Core Design Principles
 
@@ -53,21 +83,38 @@ Cloudflare Pages (static hosting)
 3. **Progressive Enhancement**: Features adapt based on hardware capability (CPU, GPU, RAM, WebGPU, SIMD, Threads, Memory64)
 4. **Instant Perceived Startup**: HTML splash → navigation usable at 300ms → Blender interactive at 2-5s
 
+## Key Modules
+
+- **ModuleManager/ModuleRegistry**: Manages WASM module loading with dependency resolution
+- **AIService/AIGateway**: Structured AI APIs for scene manipulation
+- **PluginManager**: Plugin lifecycle and permission management
+- **StorageManagers**: ProjectStorage, ProfileStorage, SettingsStorage, OPFSStorage
+- **DownloadManager**: Resumable downloads with progress tracking
+- **PerformanceManager**: Hardware profiling and quality presets
+
+## Testing
+
+Tests are co-located with source files (`*.test.ts`). Global mocks in `tests/setup.ts`.
+
+```bash
+pnpm test:run src/runtime/ModuleRegistry.test.ts  # Run single test file
+```
+
 ## Development Phases
 
-The project is structured in 12 phases:
-1. Research & Feasibility (ADRs, POC, browser compatibility)
-2. Core Platform (PWA, Service Worker, Hardware Profiler, Download Manager)
-3. Web Shell (modern dashboard entry point with recent projects, templates, AI assistant)
-4. Runtime Loader (modular WASM loading with lazy-load, prefetch, dependency resolution)
-5. Local Storage (IndexedDB, OPFS, Cache Storage)
-6. Login & Identity (Guest, Local Profile, Cloud Account — all optional)
-7. Plugin Platform (web-native extension system)
-8. AI Platform (structured API layer for scene graph, object selection, mesh editing, etc.)
-9. Local Automation API (open project, render frame, execute macros)
-10. Performance Architecture (SIMD, multithreading, WebGPU, streaming compilation)
-11. Collaboration (optional cloud services)
-12. Blender Web Edition Enhancements (AI-assisted workflows, marketplace, etc.)
+The project is structured in 12 phases (see `docs/PLANNING.md`):
+1. Research & Feasibility ✓
+2. Core Platform ✓
+3. Web Shell (in progress)
+4. Runtime Loader ✓
+5. Local Storage ✓
+6. Login & Identity ✓
+7. Plugin Platform ✓
+8. AI Platform ✓
+9. Local Automation API ✓
+10. Performance Architecture (planned)
+11. Collaboration ✓
+12. Blender Web Edition Enhancements (planned)
 
 ## Key Planning Decisions
 
@@ -76,6 +123,10 @@ The project is structured in 12 phases:
 - **Authentication is fully optional**: Guest mode is the default; local profiles work entirely offline
 - **Storage separation**: `.blend` files in OPFS, settings/projects metadata in IndexedDB, static assets in Cache Storage
 
-## No Build Commands Yet
+## Documentation
 
-Since no source code exists, no build/test/lint commands are defined. When development begins, refer to `docs/PLANNING.md` for the complete technical approach before implementing.
+- `docs/PLANNING.md` - Full project planning
+- `docs/ARCHITECTURE.md` - System architecture
+- `docs/API.md` - Public API reference
+- `docs/TESTING.md` - Testing guide
+- `docs/CONTRIBUTING.md` - Contribution guidelines

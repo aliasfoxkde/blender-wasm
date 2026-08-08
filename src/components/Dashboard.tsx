@@ -173,8 +173,7 @@ export const Dashboard: Component<DashboardProps> = (props) => {
 
           {/* Templates Tab */}
           <Show when={activeTab() === 'templates'}>
-            <TemplateGallery onSelect={(template) => {
-              console.log('Selected template:', template);
+            <TemplateGallery onSelect={(_template) => {
               props.onNewProject();
             }} />
           </Show>

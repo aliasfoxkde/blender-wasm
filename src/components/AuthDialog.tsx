@@ -1,5 +1,5 @@
 import { Component, Show, For, createSignal } from 'solid-js';
-import { authManager, type AuthState, type UserProfile } from '../auth';
+import { authManager, type UserProfile } from '../auth';
 
 interface AuthDialogProps {
   isOpen: boolean;

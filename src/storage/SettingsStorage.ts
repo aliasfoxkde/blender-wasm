@@ -69,7 +69,7 @@ class SettingsStorage {
       this.settings = { ...DEFAULT_SETTINGS };
     }
 
-    return this.settings;
+    return this.settings!;
   }
 
   async get(): Promise<AppSettings> {

@@ -53,20 +53,13 @@ export const Header: Component<HeaderProps> = (props) => {
             </div>
           </Show>
 
-          <Show when={props.capabilityProfile}>
-            {(profile) => {
-              const badge = getCapabilityBadge();
-              return (
-                <Show when={badge}>
-                  <span
-                    class="capability-badge"
-                    style={{ background: badge!.color }}
-                  >
-                    {badge!.text}
-                  </span>
-                </Show>
-              );
-            }}
+          <Show when={props.capabilityProfile && getCapabilityBadge()}>
+            <span
+              class="capability-badge"
+              style={{ background: getCapabilityBadge()!.color }}
+            >
+              {getCapabilityBadge()!.text}
+            </span>
           </Show>
 
           <ProfileMenu onOpenSettings={() => setShowSettings(true)} />

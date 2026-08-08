@@ -57,7 +57,7 @@ export default defineConfig({
           },
           {
             urlPattern: /\.blend$/,
-            handler: 'StorageFirst',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'blend-cache',
               expiration: {

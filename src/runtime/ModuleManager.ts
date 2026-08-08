@@ -117,27 +117,14 @@ class ModuleManager {
   }
 
   getRecommendedModules(): string[] {
-    // Return recommended modules based on current usage patterns
-    // For now, just return core + commonly used modules
-    return ['core', 'mesh', 'animation'];
+    // Single Blender artifact - all operations use the same runtime
+    return ['blender'];
   }
 
   // Suggest modules to preload based on user behavior
-  suggestModules(action: string): string[] {
-    switch (action) {
-      case 'start_sculpting':
-        return ['core', 'mesh', 'sculpt'];
-      case 'start_animation':
-        return ['core', 'animation'];
-      case 'start_render':
-        return ['core', 'eevee']; // or 'cycles'
-      case 'import_fbx':
-        return ['core', 'fbx'];
-      case 'import_usd':
-        return ['core', 'usd'];
-      default:
-        return ['core'];
-    }
+  suggestModules(_action: string): string[] {
+    // All operations use the single blender artifact
+    return ['blender'];
   }
 }
 
