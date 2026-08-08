@@ -1,0 +1,28 @@
+# Emscripten
+emsdk/
+
+# Blender source
+blender/
+
+# Dependency sysroot
+deps/
+wasm-sysroot/
+
+# Build output
+build-cycles/
+
+# Web-ready artifacts (large, published via CI/release)
+web/*.wasm
+web/*.wasm.zst
+web/*.data
+web/*.tar
+web/*.tar.zst
+
+# Logs
+artifacts/
+logs/
+
+# OS
+.DS_Store
+*.swp
+*~

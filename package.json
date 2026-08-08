@@ -21,6 +21,7 @@
     "audit:wasm": "bash scripts/audit-blender-artifact.sh",
     "audit:blenlib": "bash scripts/audit-blenlib-artifact.sh",
     "audit:baselines": "bash scripts/audit-distinguish-baselines.sh",
+    "audit:real-render": "node scripts/audit-real-render-artifacts.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
