@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+dev-dist/
+a.out.*
 
 # Test results
 test-results/

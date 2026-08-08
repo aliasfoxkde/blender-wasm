@@ -28,11 +28,11 @@ The project has three distinct build outputs:
    artifacts/blender-wasm/blender.wasm
    ```
 
-3. Experimental blenlib runtime:
+3. Public experimental blenlib runtime:
 
    ```text
-   artifacts/blender-wasm/blender_blenlib.js
-   artifacts/blender-wasm/blender_blenlib.wasm
+   public/wasm/blender/blender_blenlib.js
+   public/wasm/blender/blender_blenlib.wasm
    ```
 
    Scope: real `bf_blenlib`, `bf_dna`, `bf_intern_clog`, and
@@ -95,7 +95,7 @@ causes whole-archive behavior, pulls unused code, and introduces avoidable
 undefined symbols from optional dependencies. The correct phase-2 policy is:
 export bridge functions only and let wasm-ld eliminate unused archive members.
 
-### The experimental blenlib module is built but not promoted
+### The experimental blenlib module is promoted and loaded by the browser
 
 `BlenderBlenlibRuntime.ts` loads from:
 
@@ -103,9 +103,9 @@ export bridge functions only and let wasm-ld eliminate unused archive members.
 /wasm/blender/blender_blenlib.js
 ```
 
-Those files are not currently in `public/wasm/blender`. The module is therefore
-validated as an artifact, not yet a default browser runtime. Do not write UI
-that assumes it is public until Phase 1 below promotes it deliberately.
+Those files are now in `public/wasm/blender`. The viewport loads the minimal
+bridge first, then loads the promoted blenlib module and displays diagnostics
+backed by real WASM calls. This is still not native Blender scene rendering.
 
 ## Non-Negotiable Rules
 
@@ -121,24 +121,21 @@ that assumes it is public until Phase 1 below promotes it deliberately.
 - Keep public artifacts and experimental artifacts separate until a promotion
   phase explicitly merges them.
 
-## Phase 1: Promote Or Gate The Experimental Blenlib Runtime
+## Phase 1: Keep The Promoted Blenlib Runtime Gated
 
-Goal: make the experimental blenlib module usable without breaking the minimal
-runtime.
+Goal: keep the promoted experimental blenlib module usable without overstating
+what it provides.
 
 Tasks:
 
-1. Decide one path:
-   - Preferred MVP path: copy `artifacts/blender-wasm/blender_blenlib.*` to
-     `public/wasm/blender/` after the artifact smoke test passes.
-   - Conservative path: keep it artifact-only and ensure the UI never attempts
-     to load it by default.
-2. If promoting, update `pnpm build` output expectations so `dist/wasm/blender`
+1. Keep `./scripts/build-blender-wasm.sh blenlib-module` promoting
+   `blender_blenlib.*` to `public/wasm/blender/`.
+2. Keep `pnpm build` output expectations so `dist/wasm/blender`
    contains `blender_blenlib.js` and `blender_blenlib.wasm`.
-3. Add a browser smoke test that loads `BlenderBlenlibRuntime`, runs
+3. Maintain a browser smoke test that loads `BlenderBlenlibRuntime`, runs
    `runSmokeTest()`, calls `hashStringMm2a("Blender")`, and asserts a stable
    numeric result.
-4. Add an artifact audit that fails if the public blenlib JS exists without the
+4. Keep the artifact audit failing if the public blenlib JS exists without the
    matching WASM or vice versa.
 
 Acceptance commands:
@@ -288,5 +285,4 @@ Every phase must end with a build note under `docs/build-notes/` containing:
 ## Immediate Next Step
 
 Start with Phase 1. Do not touch mesh, renderer, file loading, or plugin claims
-until the experimental blenlib module is either promoted to `public/wasm/blender`
-with a browser test or explicitly gated as artifact-only.
+until the promoted blenlib browser diagnostics stay green.

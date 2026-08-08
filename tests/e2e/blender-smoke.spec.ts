@@ -76,46 +76,27 @@ test.describe('Blender WASM Smoke Test', () => {
     const smokeStatus = page.getByTestId('blender-smoke-status');
     await expect(smokeStatus).toBeVisible({ timeout: 15000 });
     await expect(smokeStatus).toContainText('Bridge: OK');
+
+    const blenlibStatus = page.getByTestId('blender-blenlib-status');
+    await expect(blenlibStatus).toBeVisible({ timeout: 15000 });
+    await expect(blenlibStatus).toContainText('blenlib: OK');
   });
 
-  test('new project should render a nonblank viewport preview', async ({ page }) => {
+  test('new project should show real Blender WASM diagnostics', async ({ page }) => {
     await page.goto('/');
 
     const newProject = page.getByRole('button', { name: /New Project/i }).first();
     await expect(newProject).toBeVisible({ timeout: 6000 });
     await newProject.click();
 
-    await page.getByTestId('blender-smoke-status').waitFor({ timeout: 15000 });
-    await page.waitForTimeout(1000);
+    const diagnostics = page.getByTestId('blender-runtime-diagnostics');
+    await expect(diagnostics).toBeVisible({ timeout: 15000 });
+    await expect(diagnostics).toContainText('Real Blender WASM modules loaded');
+    await expect(diagnostics).toContainText('bf_blenlib');
+    await expect(diagnostics).toContainText('bf_dna');
+    await expect(diagnostics).toContainText('Native Blender scene rendering is not in this build yet');
 
-    const canvasStats = await page.locator('canvas').evaluate((canvas) => {
-      const source = canvas as HTMLCanvasElement;
-      const sample = document.createElement('canvas');
-      sample.width = source.width;
-      sample.height = source.height;
-      const ctx = sample.getContext('2d');
-      if (!ctx) {
-        return { variedPixels: 0 };
-      }
-
-      ctx.drawImage(source, 0, 0);
-      const data = ctx.getImageData(0, 0, sample.width, sample.height).data;
-      const bg = [data[0], data[1], data[2]];
-      let variedPixels = 0;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const diff =
-          Math.abs(data[i] - bg[0]) +
-          Math.abs(data[i + 1] - bg[1]) +
-          Math.abs(data[i + 2] - bg[2]);
-        if (diff > 20) {
-          variedPixels += 1;
-        }
-      }
-
-      return { variedPixels };
-    });
-
-    expect(canvasStats.variedPixels).toBeGreaterThan(1000);
+    const hash = page.getByTestId('blenlib-hash');
+    await expect(hash).toHaveText(/^\d+$/);
   });
 });

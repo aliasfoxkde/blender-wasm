@@ -6,6 +6,7 @@ set -euo pipefail
 
 ARTIFACTS=(
     "/wasm/blender/blender.wasm"           # minimal baseline
+    "/wasm/blender/blender_blenlib.wasm"   # public experimental blenlib
     "/artifacts/blender-wasm/blender.wasm"  # from build
     "/artifacts/blender-wasm/blender_blenlib.wasm"  # experimental blenlib
 )
@@ -87,6 +88,23 @@ echo "Blender WASM Baseline Audit"
 echo "=========================="
 
 found=0
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+for pair_base in \
+    "$PROJECT_ROOT/public/wasm/blender/blender_blenlib" \
+    "$PROJECT_ROOT/artifacts/blender-wasm/blender_blenlib"
+do
+    js_file="${pair_base}.js"
+    wasm_file="${pair_base}.wasm"
+    if [ -f "$js_file" ] && [ ! -f "$wasm_file" ]; then
+        echo -e "${RED}FAIL${NC}: $js_file exists without matching $wasm_file"
+        exit 1
+    fi
+    if [ -f "$wasm_file" ] && [ ! -f "$js_file" ]; then
+        echo -e "${RED}FAIL${NC}: $wasm_file exists without matching $js_file"
+        exit 1
+    fi
+done
 
 # Try to find baselines in common locations
 for artifact in "${ARTIFACTS[@]}"; do
@@ -98,8 +116,7 @@ for artifact in "${ARTIFACTS[@]}"; do
 done
 
 # Also check relative to project root
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-for subpath in "public/wasm/blender/blender.wasm" "artifacts/blender-wasm/blender.wasm" "artifacts/blender-wasm/blender_blenlib.wasm"; do
+for subpath in "public/wasm/blender/blender.wasm" "public/wasm/blender/blender_blenlib.wasm" "artifacts/blender-wasm/blender.wasm" "artifacts/blender-wasm/blender_blenlib.wasm"; do
     fullpath="$PROJECT_ROOT/$subpath"
     if [ -f "$fullpath" ]; then
         if audit_wasm "$fullpath" "$subpath"; then

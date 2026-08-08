@@ -58,6 +58,19 @@ class BlenderBlenlibRuntime {
 
     try {
       const blenderJsUrl = `${ARTIFACT_BASE}/blender_blenlib.js`;
+      const blenderWasmUrl = `${ARTIFACT_BASE}/blender_blenlib.wasm`;
+      const [jsResponse, wasmResponse] = await Promise.all([
+        fetch(blenderJsUrl, { method: 'HEAD' }),
+        fetch(blenderWasmUrl, { method: 'HEAD' }),
+      ]);
+
+      if (!jsResponse.ok || !wasmResponse.ok) {
+        throw new Error(
+          `Blenlib WASM artifact not found at ${ARTIFACT_BASE}/. ` +
+          `Run: ./scripts/build-blender-wasm.sh blenlib-module and promote blender_blenlib.*.`
+        );
+      }
+
       const ModuleFactory = await this.loadModuleFactory(blenderJsUrl);
       const module = await ModuleFactory(this.createModuleConfig());
       this.assertExports(module);

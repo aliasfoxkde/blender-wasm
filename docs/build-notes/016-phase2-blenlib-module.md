@@ -101,11 +101,13 @@ accepted.
 
 After this phase:
 
-1. Decide whether to promote `blender_blenlib.*` to `public/wasm/blender`.
-2. Add a browser UI that loads the experimental module only when the artifacts
+1. Keep `blenlib-module` promoting `blender_blenlib.*` to
+   `public/wasm/blender`.
+2. Keep the browser UI loading the experimental module only when the artifacts
    are present.
-3. Keep the minimal public module as the default runtime until the blenlib
-   module has a user-facing feature and browser migration test.
+3. Keep the minimal public module as the core bridge runtime; the promoted
+   blenlib module is an additional experimental Blender-derived runtime, not a
+   native scene renderer.
 
 ## Artifacts Changed
 

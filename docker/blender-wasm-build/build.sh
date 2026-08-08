@@ -267,6 +267,14 @@ build_blenlib_module() {
     echo "=========================================="
     ls -lh "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.js" "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.wasm" 2>/dev/null || \
     ls -lh "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.js" 2>/dev/null || echo "Check artifacts"
+
+    mkdir -p "$BLENDER_WASM_PUBLIC_DIR"
+    cp "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.js" "$BLENDER_WASM_PUBLIC_DIR/blender_blenlib.js"
+    cp "$ARTIFACTS_DIR/blender-wasm/blender_blenlib.wasm" "$BLENDER_WASM_PUBLIC_DIR/blender_blenlib.wasm"
+
+    echo ""
+    echo "Promoted experimental blenlib module to public runtime:"
+    ls -lh "$BLENDER_WASM_PUBLIC_DIR/blender_blenlib.js" "$BLENDER_WASM_PUBLIC_DIR/blender_blenlib.wasm"
 }
 
 build_minimal() {

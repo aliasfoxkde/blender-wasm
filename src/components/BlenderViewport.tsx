@@ -1,12 +1,19 @@
-import { Component, onMount, onCleanup, createSignal, Show } from 'solid-js';
+import { Component, onMount, onCleanup, createSignal, For, Show } from 'solid-js';
 import type { CapabilityProfile } from '../core/HardwareProfiler';
-import { blenderRuntime, type SmokeTestResult } from '../runtime';
+import {
+  blenderRuntime,
+  blenlibRuntime,
+  type BlenlibCapabilities,
+  type SmokeTestResult,
+} from '../runtime';
 
 type WasmAvailabilityState =
   | 'checking'
   | 'artifact-missing'
   | 'runtime-loading'
   | 'bridge-validated'
+  | 'blenlib-loading'
+  | 'blenlib-validated'
   | 'smoke-failed'
   | 'graphics-init'
   | 'ready';
@@ -37,6 +44,9 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
   const [isReady, setIsReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [smokeTest, setSmokeTest] = createSignal<SmokeTestResult | null>(null);
+  const [blenlibCapabilities, setBlenlibCapabilities] = createSignal<BlenlibCapabilities | null>(null);
+  const [blenlibHash, setBlenlibHash] = createSignal<number | null>(null);
+  const [blenlibSmokeOk, setBlenlibSmokeOk] = createSignal(false);
 
   const loadModules = async () => {
     setWasmState('checking');
@@ -60,6 +70,24 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           `Blender smoke test failed: ${smokeResult.error || smokeResult.message}`
         );
       }
+
+      setLoadProgress(88);
+      setLoadStatus('Loading Blender blenlib module...');
+      setWasmState('blenlib-loading');
+      await blenlibRuntime.load();
+      const blenlibSmoke = await blenlibRuntime.runSmokeTest();
+      const capabilities = await blenlibRuntime.getCapabilities();
+      const hash = await blenlibRuntime.hashStringMm2a('Blender');
+
+      if (!blenlibSmoke || !capabilities) {
+        setWasmState('smoke-failed');
+        throw new Error('Blender blenlib module loaded but failed its smoke test');
+      }
+
+      setBlenlibSmokeOk(blenlibSmoke);
+      setBlenlibCapabilities(capabilities);
+      setBlenlibHash(hash);
+      setWasmState('blenlib-validated');
 
       setWasmState('graphics-init');
       setLoadStatus('Initializing graphics...');
@@ -141,9 +169,8 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
   };
 
   const configureWebGL = (gl: WebGLRenderingContext | WebGL2RenderingContext) => {
-    gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.CULL_FACE);
-    gl.cullFace(gl.BACK);
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
     gl.clearColor(0.055, 0.06, 0.07, 1.0);
     previewScene = createPreviewScene(gl);
   };
@@ -229,7 +256,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
     }
   };
 
-  const buildPreviewVertices = (time: number) => {
+  const buildPreviewVertices = () => {
     const vertices: number[] = [];
     const addLine = (
       ax: number,
@@ -244,47 +271,16 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
     const gridColor: [number, number, number] = [0.19, 0.22, 0.26];
     const axisX: [number, number, number] = [0.86, 0.22, 0.24];
     const axisY: [number, number, number] = [0.28, 0.68, 0.34];
-    const cubeColor: [number, number, number] = [0.96, 0.72, 0.28];
-
     for (let i = -10; i <= 10; i += 1) {
       const p = i / 10;
       addLine(-0.92, p * 0.72, 0.92, p * 0.72, i === 0 ? axisX : gridColor);
       addLine(p * 0.92, -0.72, p * 0.92, 0.72, i === 0 ? axisY : gridColor);
     }
 
-    const points = [
-      [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
-      [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1],
-    ];
-    const edges = [
-      [0, 1], [1, 2], [2, 3], [3, 0],
-      [4, 5], [5, 6], [6, 7], [7, 4],
-      [0, 4], [1, 5], [2, 6], [3, 7],
-    ];
-    const angleY = time * 0.0007;
-    const angleX = time * 0.00045;
-    const sinY = Math.sin(angleY);
-    const cosY = Math.cos(angleY);
-    const sinX = Math.sin(angleX);
-    const cosX = Math.cos(angleX);
-
-    const projected = points.map(([x, y, z]) => {
-      const rx = x * cosY - z * sinY;
-      const rz = x * sinY + z * cosY;
-      const ry = y * cosX - rz * sinX;
-      const rz2 = y * sinX + rz * cosX;
-      const scale = 0.34 / (2.8 + rz2);
-      return [rx * scale * 2.4, ry * scale * 2.4 + 0.04];
-    });
-
-    for (const [a, b] of edges) {
-      addLine(projected[a][0], projected[a][1], projected[b][0], projected[b][1], cubeColor);
-    }
-
     return new Float32Array(vertices);
   };
 
-  const renderPreviewScene = (time: number) => {
+  const renderPreviewScene = () => {
     if (!previewScene || !canvasRef) return;
 
     const { gl, program, buffer, positionLocation, colorLocation, stride } = previewScene;
@@ -292,7 +288,7 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
     gl.viewport(0, 0, canvasRef.width, canvasRef.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    const vertices = buildPreviewVertices(time);
+    const vertices = buildPreviewVertices();
     gl.useProgram(program);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
@@ -312,11 +308,11 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
   };
 
   const startRenderLoop = () => {
-    const render = (time: number) => {
+    const render = () => {
       if (!isReady()) return;
 
       if (previewScene) {
-        renderPreviewScene(time);
+        renderPreviewScene();
       } else {
         const gl = canvasRef?.getContext('webgl2') || canvasRef?.getContext('webgl');
         if (gl) {
@@ -366,6 +362,12 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
             <Show when={wasmState() === 'bridge-validated'}>
               <p class="wasm-state-info">
                 Bridge validated ✓ — running Blender smoke test
+              </p>
+            </Show>
+
+            <Show when={wasmState() === 'blenlib-loading' || wasmState() === 'blenlib-validated'}>
+              <p class="wasm-state-info">
+                blenlib module {wasmState() === 'blenlib-validated' ? 'validated' : 'loading'}
               </p>
             </Show>
 
@@ -429,6 +431,44 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
 
       {/* Status Bar */}
       <Show when={isReady()}>
+        <div class="runtime-diagnostics" data-testid="blender-runtime-diagnostics">
+          <div class="diagnostics-header">
+            <span class="status-indicator online" />
+            <span>Real Blender WASM modules loaded</span>
+          </div>
+          <div class="diagnostics-grid">
+            <div>
+              <span class="diagnostic-label">Core bridge</span>
+              <strong>{smokeTest()?.success ? 'OK' : 'FAILED'}</strong>
+            </div>
+            <div>
+              <span class="diagnostic-label">blenlib smoke</span>
+              <strong data-testid="blenlib-smoke-status">{blenlibSmokeOk() ? 'OK' : 'FAILED'}</strong>
+            </div>
+            <div>
+              <span class="diagnostic-label">hash("Blender")</span>
+              <strong data-testid="blenlib-hash">{blenlibHash()}</strong>
+            </div>
+            <div>
+              <span class="diagnostic-label">runtime scope</span>
+              <strong>{blenlibCapabilities()?.build_type || 'minimal'}</strong>
+            </div>
+          </div>
+          <div class="diagnostics-libraries">
+            <For each={blenlibCapabilities()?.libraries || []}>
+              {(library) => (
+                <span>
+                  {library.name}: {library.provides.join(', ')}
+                </span>
+              )}
+            </For>
+          </div>
+          <p>
+            Native Blender scene rendering is not in this build yet. This
+            page is running the current compiled Blender baseline in WASM:
+            core bridge, guarded allocator, DNA, and blenlib.
+          </p>
+        </div>
         <div class="viewport-status-bar">
           <div class="status-left">
             <span class="status-indicator online" />
@@ -438,6 +478,9 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
                 Bridge: {smokeTest()?.success ? 'OK' : 'FAILED'}
               </span>
             </Show>
+            <span class="status-item" data-testid="blender-blenlib-status">
+              blenlib: {blenlibSmokeOk() ? 'OK' : 'FAILED'}
+            </span>
             <span class="status-item wasm-state-badge">
               {wasmState()}
             </span>
@@ -464,6 +507,80 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           left: 0;
           width: 100%;
           height: 100%;
+        }
+
+        .runtime-diagnostics {
+          position: absolute;
+          top: 72px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: min(760px, calc(100% - 48px));
+          background: rgba(22, 24, 27, 0.92);
+          border: 1px solid var(--color-bg-lighter);
+          border-radius: var(--radius-md);
+          padding: var(--spacing-lg);
+          z-index: 2;
+          box-shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
+        }
+
+        .diagnostics-header {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          font-weight: 700;
+          margin-bottom: var(--spacing-md);
+        }
+
+        .diagnostics-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-md);
+        }
+
+        .diagnostics-grid > div {
+          min-width: 0;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: var(--radius-sm);
+          padding: var(--spacing-sm);
+        }
+
+        .diagnostic-label {
+          display: block;
+          color: var(--color-text-muted);
+          font-size: var(--font-xs);
+          margin-bottom: var(--spacing-xs);
+        }
+
+        .diagnostics-grid strong {
+          display: block;
+          overflow-wrap: anywhere;
+          font-family: monospace;
+          color: var(--color-text-primary);
+        }
+
+        .diagnostics-libraries {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-xs);
+          margin-bottom: var(--spacing-md);
+        }
+
+        .diagnostics-libraries span {
+          background: rgba(255, 152, 0, 0.12);
+          border: 1px solid rgba(255, 152, 0, 0.22);
+          border-radius: var(--radius-sm);
+          color: var(--color-text-secondary);
+          font-size: var(--font-xs);
+          padding: 4px 8px;
+        }
+
+        .runtime-diagnostics p {
+          margin: 0;
+          color: var(--color-text-secondary);
+          font-size: var(--font-sm);
+          line-height: 1.5;
         }
 
         .loading-overlay,
@@ -636,6 +753,18 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
           font-family: monospace;
           font-size: var(--font-xs);
           background: var(--color-bg-lighter);
+        }
+
+        @media (max-width: 760px) {
+          .runtime-diagnostics {
+            top: 64px;
+            width: calc(100% - 24px);
+            padding: var(--spacing-md);
+          }
+
+          .diagnostics-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
         }
       `}</style>
     </div>
