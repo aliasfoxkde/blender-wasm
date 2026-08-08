@@ -235,9 +235,11 @@ build_blenlib_module() {
     echo "Linking experimental blenlib WASM module..."
     echo "=========================================="
 
-    # Link the blenlib bridge with blenlib library
-    # NOTE: -sLINKABLE=1 prevents dead code elimination
-    emcc /blender-wasm/docker/blender-wasm-build/blenlib/blender_blenlib_bridge.c \
+    # Link the blenlib bridge with blenlib library. Do not use -sLINKABLE=1
+    # here: this module intentionally exports the bridge API only. LINKABLE
+    # forces whole-archive behavior and pulls unrelated optional blenlib code
+    # that requires deps such as fmt, xxhash, and zlib even when unused.
+    em++ /blender-wasm/docker/blender-wasm-build/blenlib/blender_blenlib_bridge.cc \
         "$BUILD_DIR/lib/libbf_blenlib.a" \
         "$BUILD_DIR/lib/libbf_dna.a" \
         "$BUILD_DIR/lib/libbf_intern_clog.a" \
@@ -247,13 +249,13 @@ build_blenlib_module() {
         -I"$BLENDER_SRC/intern/guardedalloc" \
         -I"$BLENDER_SRC/intern/guardedalloc/intern" \
         -I"$BLENDER_SRC/intern/atomic" \
+        -I"$BLENDER_SRC/source/blender/blenlib" \
         -I"$BLENDER_SRC/source/blender/blenlib/intern" \
         -I"$BLENDER_SRC/source/blender/makesdna" \
-        -sLINKABLE=1 \
         -sMODULARIZE=1 \
         -sEXPORT_NAME=CreateBlenderBlenlibModule \
         -sEXPORTED_FUNCTIONS=_bw_blenlib_capabilities_json,_bw_blenlib_smoke_test,_bw_hash_string_mm2a,_malloc,_free \
-        -sEXPORTED_RUNTIME_METHODS=UTF8ToString \
+        -sEXPORTED_RUNTIME_METHODS=UTF8ToString,stringToUTF8 \
         -sALLOW_MEMORY_GROWTH=1 \
         -sINITIAL_MEMORY=16777216 \
         -sWASM=1 \

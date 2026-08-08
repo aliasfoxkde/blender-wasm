@@ -7,6 +7,20 @@ set -euo pipefail
 BLENLIB_PATH="${BLENLIB_PATH:-/build/build/lib/libbf_blenlib.a}"
 DNA_PATH="${DNA_PATH:-/build/build/lib/libbf_dna.a}"
 
+if [ "${BLENDER_WASM_AUDIT_IN_DOCKER:-0}" != "1" ]; then
+  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  if [ ! -x /emsdk/upstream/emscripten/emar ] || [ ! -f "$BLENLIB_PATH" ] || [ ! -f "$DNA_PATH" ]; then
+    echo "Running blenlib archive audit inside Docker..."
+    cd "$PROJECT_ROOT/docker/blender-wasm-build"
+    exec docker compose run --rm blender-wasm-build bash -lc '
+      set -euo pipefail
+      export BLENDER_WASM_AUDIT_IN_DOCKER=1
+      source /emsdk/emsdk_env.sh >/dev/null
+      exec bash /blender-wasm/scripts/audit-blenlib-artifact.sh
+    '
+  fi
+fi
+
 fail() {
   echo "FAIL: $*" >&2
   exit 1

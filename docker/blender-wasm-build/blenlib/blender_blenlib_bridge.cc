@@ -4,31 +4,42 @@
  * This source file provides the bridge API for the blenlib WASM module.
  * It is compiled and linked against real Blender blenlib and DNA libraries.
  *
- * Build: ./scripts/build-blender-wasm.sh blenlib
+ * Build: ./scripts/build-blender-wasm.sh blenlib-module
  */
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 
-/* blenlib includes */
-extern void CLG_init(void);
-extern void CLG_exit(void);
-extern void CLG_level_set(int level);
+#include "BLI_hash_mm2a.hh"
+#include "BLI_string_utf8.h"
 
-/* From bf_intern_guardedalloc */
-extern size_t MEM_get_memory_in_use(void);
-extern unsigned int MEM_get_memory_blocks_in_use(void);
+extern "C" {
 
-/* From blenlib - hash function */
-extern unsigned int BLI_hash_mm2a(const char *str);
+/* From bf_intern_clog. */
+void CLG_init(void);
+void CLG_exit(void);
+void CLG_level_set(int level);
 
-/* From blenlib - string utilities */
-extern size_t BLI_strlen(const char *str);
-extern int BLI_strcmp(const char *a, const char *b);
+/* From bf_intern_guardedalloc. */
+size_t MEM_get_memory_in_use(void);
+unsigned int MEM_get_memory_blocks_in_use(void);
+
+}
+
+static uint32_t hash_string_mm2a(const char *value)
+{
+    if (value == nullptr) {
+        return 0;
+    }
+    return BLI_hash_mm2(reinterpret_cast<const unsigned char *>(value), strlen(value), 0);
+}
 
 /**
  * Get blenlib capabilities as JSON.
  */
+extern "C" {
+
 const char* bw_blenlib_capabilities_json(void) {
     static char json[1024];
     snprintf(json, sizeof(json),
@@ -62,24 +73,26 @@ int bw_blenlib_smoke_test(void) {
     CLG_level_set(0);
 
     /* Test hash function with known input */
-    unsigned int hash1 = BLI_hash_mm2a("Blender");
-    unsigned int hash2 = BLI_hash_mm2a("Blender");
+    unsigned int hash1 = hash_string_mm2a("Blender");
+    unsigned int hash2 = hash_string_mm2a("Blender");
 
     /* Same input should produce same hash */
     if (hash1 != hash2) {
+        CLG_exit();
         return 0;
     }
 
     /* Different input should produce different hash (with high probability) */
-    unsigned int hash3 = BLI_hash_mm2a("blender");  /* lowercase */
+    unsigned int hash3 = hash_string_mm2a("blender");  /* lowercase */
     if (hash1 == hash3) {
         /* This could happen by chance, but unlikely for short strings */
     }
 
     /* Test string functions */
     const char *test_str = "Blender WASM";
-    size_t len = BLI_strlen(test_str);
+    size_t len = BLI_strlen_utf8(test_str);
     if (len != 12) {
+        CLG_exit();
         return 0;
     }
 
@@ -92,8 +105,10 @@ int bw_blenlib_smoke_test(void) {
  * Returns 32-bit unsigned hash value.
  */
 unsigned int bw_hash_string_mm2a(const char *value) {
-    if (value == NULL) {
+    if (value == nullptr) {
         return 0;
     }
-    return BLI_hash_mm2a(value);
+    return hash_string_mm2a(value);
+}
+
 }

@@ -67,15 +67,15 @@ audit_wasm() {
         echo -e "  ${GREEN}+${NC} Has DNA markers"
     fi
 
-    # Check file size to infer baseline
-    if [ "$size" -lt 500000 ]; then
+    # Prefer explicit markers over size. The experimental blenlib bridge is
+    # intentionally smaller than the minimal LINKABLE proof because it exports
+    # only the bridge API and lets wasm-ld eliminate unused archive members.
+    if [ "$has_blenlib" = true ]; then
+        print_baseline "BLENLIB" "4.2.0-wasm" "$size" "clog, guardedalloc, blenlib, DNA" "Experimental"
+    elif [ "$has_minimal" = true ]; then
         print_baseline "MINIMAL" "4.2.0-wasm" "$size" "clog, guardedalloc" "Baseline"
     elif [ "$size" -lt 2000000 ]; then
-        if [ "$has_blenlib" = true ]; then
-            print_baseline "BLENLIB" "4.2.0-wasm" "$size" "clog, guardedalloc, blenlib, DNA" "Experimental"
-        else
-            print_baseline "MINIMAL+" "4.2.0-wasm" "$size" "clog, guardedalloc, ..." "Unknown"
-        fi
+        print_baseline "MINIMAL+" "4.2.0-wasm" "$size" "unknown small artifact" "Needs verification"
     else
         print_baseline "FULL?" "4.2.0-wasm" "$size" "Multiple libraries" "Needs verification"
     fi

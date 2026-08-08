@@ -15,9 +15,21 @@ interface BlenderViewportProps {
   capabilityProfile: CapabilityProfile | null;
 }
 
+type ViewportGL = WebGLRenderingContext | WebGL2RenderingContext;
+
+interface PreviewScene {
+  gl: ViewportGL;
+  program: WebGLProgram;
+  buffer: WebGLBuffer;
+  positionLocation: number;
+  colorLocation: number;
+  stride: number;
+}
+
 export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
   let canvasRef: HTMLCanvasElement | undefined;
   let animationFrame: number;
+  let previewScene: PreviewScene | null = null;
 
   const [wasmState, setWasmState] = createSignal<WasmAvailabilityState>('checking');
   const [loadProgress, setLoadProgress] = createSignal(0);
@@ -82,6 +94,11 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
     if (animationFrame) {
       cancelAnimationFrame(animationFrame);
     }
+    if (previewScene) {
+      previewScene.gl.deleteBuffer(previewScene.buffer);
+      previewScene.gl.deleteProgram(previewScene.program);
+      previewScene = null;
+    }
   });
 
   const initGraphics = async () => {
@@ -108,7 +125,11 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
     }
 
     // Fall back to WebGL
-    const gl = canvasRef.getContext('webgl2') || canvasRef.getContext('webgl');
+    const glOptions: WebGLContextAttributes = {
+      antialias: true,
+      preserveDrawingBuffer: true,
+    };
+    const gl = canvasRef.getContext('webgl2', glOptions) || canvasRef.getContext('webgl', glOptions);
     if (gl) {
       console.log('Using WebGL');
       configureWebGL(gl);
@@ -123,16 +144,184 @@ export const BlenderViewport: Component<BlenderViewportProps> = (props) => {
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
-    gl.clearColor(0.1, 0.1, 0.1, 1.0);
+    gl.clearColor(0.055, 0.06, 0.07, 1.0);
+    previewScene = createPreviewScene(gl);
+  };
+
+  const createShader = (gl: ViewportGL, type: number, source: string) => {
+    const shader = gl.createShader(type);
+    if (!shader) {
+      throw new Error('Unable to create WebGL shader');
+    }
+
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      const info = gl.getShaderInfoLog(shader) || 'unknown shader error';
+      gl.deleteShader(shader);
+      throw new Error(`WebGL shader compile failed: ${info}`);
+    }
+
+    return shader;
+  };
+
+  const createPreviewScene = (gl: ViewportGL): PreviewScene => {
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, `
+      attribute vec2 a_position;
+      attribute vec3 a_color;
+      varying vec3 v_color;
+
+      void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+        v_color = a_color;
+      }
+    `);
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, `
+      precision mediump float;
+      varying vec3 v_color;
+
+      void main() {
+        gl_FragColor = vec4(v_color, 1.0);
+      }
+    `);
+    const program = gl.createProgram();
+    if (!program) {
+      throw new Error('Unable to create WebGL program');
+    }
+
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.deleteShader(vertexShader);
+    gl.deleteShader(fragmentShader);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      const info = gl.getProgramInfoLog(program) || 'unknown link error';
+      gl.deleteProgram(program);
+      throw new Error(`WebGL program link failed: ${info}`);
+    }
+
+    const buffer = gl.createBuffer();
+    if (!buffer) {
+      gl.deleteProgram(program);
+      throw new Error('Unable to create WebGL buffer');
+    }
+
+    return {
+      gl,
+      program,
+      buffer,
+      positionLocation: gl.getAttribLocation(program, 'a_position'),
+      colorLocation: gl.getAttribLocation(program, 'a_color'),
+      stride: 5 * Float32Array.BYTES_PER_ELEMENT,
+    };
+  };
+
+  const resizeCanvasToDisplaySize = () => {
+    if (!canvasRef) return;
+
+    const width = Math.max(1, Math.floor(canvasRef.clientWidth * window.devicePixelRatio));
+    const height = Math.max(1, Math.floor(canvasRef.clientHeight * window.devicePixelRatio));
+    if (canvasRef.width !== width || canvasRef.height !== height) {
+      canvasRef.width = width;
+      canvasRef.height = height;
+    }
+  };
+
+  const buildPreviewVertices = (time: number) => {
+    const vertices: number[] = [];
+    const addLine = (
+      ax: number,
+      ay: number,
+      bx: number,
+      by: number,
+      color: [number, number, number]
+    ) => {
+      vertices.push(ax, ay, color[0], color[1], color[2], bx, by, color[0], color[1], color[2]);
+    };
+
+    const gridColor: [number, number, number] = [0.19, 0.22, 0.26];
+    const axisX: [number, number, number] = [0.86, 0.22, 0.24];
+    const axisY: [number, number, number] = [0.28, 0.68, 0.34];
+    const cubeColor: [number, number, number] = [0.96, 0.72, 0.28];
+
+    for (let i = -10; i <= 10; i += 1) {
+      const p = i / 10;
+      addLine(-0.92, p * 0.72, 0.92, p * 0.72, i === 0 ? axisX : gridColor);
+      addLine(p * 0.92, -0.72, p * 0.92, 0.72, i === 0 ? axisY : gridColor);
+    }
+
+    const points = [
+      [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
+      [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1],
+    ];
+    const edges = [
+      [0, 1], [1, 2], [2, 3], [3, 0],
+      [4, 5], [5, 6], [6, 7], [7, 4],
+      [0, 4], [1, 5], [2, 6], [3, 7],
+    ];
+    const angleY = time * 0.0007;
+    const angleX = time * 0.00045;
+    const sinY = Math.sin(angleY);
+    const cosY = Math.cos(angleY);
+    const sinX = Math.sin(angleX);
+    const cosX = Math.cos(angleX);
+
+    const projected = points.map(([x, y, z]) => {
+      const rx = x * cosY - z * sinY;
+      const rz = x * sinY + z * cosY;
+      const ry = y * cosX - rz * sinX;
+      const rz2 = y * sinX + rz * cosX;
+      const scale = 0.34 / (2.8 + rz2);
+      return [rx * scale * 2.4, ry * scale * 2.4 + 0.04];
+    });
+
+    for (const [a, b] of edges) {
+      addLine(projected[a][0], projected[a][1], projected[b][0], projected[b][1], cubeColor);
+    }
+
+    return new Float32Array(vertices);
+  };
+
+  const renderPreviewScene = (time: number) => {
+    if (!previewScene || !canvasRef) return;
+
+    const { gl, program, buffer, positionLocation, colorLocation, stride } = previewScene;
+    resizeCanvasToDisplaySize();
+    gl.viewport(0, 0, canvasRef.width, canvasRef.height);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    const vertices = buildPreviewVertices(time);
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(colorLocation);
+    gl.vertexAttribPointer(
+      colorLocation,
+      3,
+      gl.FLOAT,
+      false,
+      stride,
+      2 * Float32Array.BYTES_PER_ELEMENT
+    );
+    gl.drawArrays(gl.LINES, 0, vertices.length / 5);
   };
 
   const startRenderLoop = () => {
-    const render = () => {
+    const render = (time: number) => {
       if (!isReady()) return;
 
-      const gl = canvasRef?.getContext('webgl2') || canvasRef?.getContext('webgl');
-      if (gl) {
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      if (previewScene) {
+        renderPreviewScene(time);
+      } else {
+        const gl = canvasRef?.getContext('webgl2') || canvasRef?.getContext('webgl');
+        if (gl) {
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        }
       }
 
       animationFrame = requestAnimationFrame(render);

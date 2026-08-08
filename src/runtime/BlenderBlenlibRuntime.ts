@@ -115,6 +115,9 @@ class BlenderBlenlibRuntime {
       ['_bw_blenlib_smoke_test', module._bw_blenlib_smoke_test],
       ['_bw_hash_string_mm2a', module._bw_hash_string_mm2a],
       ['UTF8ToString', module.UTF8ToString],
+      ['stringToUTF8', module.stringToUTF8],
+      ['_malloc', module._malloc],
+      ['_free', module._free],
     ].filter(([, value]) => typeof value !== 'function').map(([name]) => name);
 
     if (missing.length > 0) {
@@ -178,19 +181,23 @@ class BlenderBlenlibRuntime {
     }
 
     const module = this.instance;
-    if (!module._bw_hash_string_mm2a || !module._malloc || !module.UTF8ToString) {
+    if (!module._bw_hash_string_mm2a || !module._malloc || !module._free || !module.stringToUTF8) {
       throw new Error('Hash function not available');
     }
 
-    const strPtr = module._malloc(value.length + 1);
+    const byteLength = new TextEncoder().encode(value).length + 1;
+    const strPtr = module._malloc(byteLength);
     if (!strPtr) {
       throw new Error('Failed to allocate string');
     }
 
-    module.stringToUTF8?.(value, strPtr, value.length + 1);
-    const hash = module._bw_hash_string_mm2a(strPtr);
-
-    return hash >>> 0; // Convert to unsigned
+    try {
+      module.stringToUTF8(value, strPtr, byteLength);
+      const hash = module._bw_hash_string_mm2a(strPtr);
+      return hash >>> 0; // Convert to unsigned
+    } finally {
+      module._free(strPtr);
+    }
   }
 
   /**
