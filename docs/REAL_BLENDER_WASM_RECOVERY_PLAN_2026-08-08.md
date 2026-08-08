@@ -6,6 +6,10 @@ This document supersedes any plan that treats a grid/cube preview as Blender
 running in the browser. The current app has a real compiled Blender baseline,
 but it does not have native Blender scene rendering.
 
+For the detailed MiniMax implementation handoff, read
+[`minimax-real-render/README.md`](minimax-real-render/README.md) first and then
+complete the documents in that folder in order.
+
 ## Current Truth
 
 The committed browser artifacts are useful but limited:
