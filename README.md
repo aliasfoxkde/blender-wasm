@@ -1,19 +1,48 @@
 # Blender Web Edition
 
-Blender optimized and compiled to run in the browser using WebAssembly.
+A browser-based PWA shell and experimental WebAssembly host for a future
+Blender port. **The full Blender application is not yet integrated or usable
+in the browser.**
+
+> **Prototype status:** the live demo showcases the web shell, module/runtime
+> infrastructure, local storage, and platform scaffolding. It is not a
+> browser build of the Blender editor. See [Current implementation boundary](#current-implementation-boundary).
 
 ## Live Demo
 
 **Try it now**: https://blender-wasm.pages.dev
 
+## Current implementation boundary
+
+**Available today**
+- Browser shell and PWA navigation.
+- Runtime module registry/loader, dependency resolution, and download management.
+- Local application storage and profile/settings infrastructure.
+- Plugin, AI gateway, and automation scaffolding.
+- Experimental minimal and `blenlib` WebAssembly bridge builds.
+
+**Not available yet**
+- A complete Blender application compiled to WASM.
+- The Blender editor, a real Blender viewport, or Blender scene editing.
+- Browser execution of Blender Python/`bpy` workflows.
+- Cycles rendering or verified real Blender render output.
+- Full `.blend` open/edit/save workflows driven by Blender core.
+
+The MVP acceptance criteria require a reproducible Blender-derived WASM
+artifact, a browser test proving Blender code executes, and verified output
+files. Until those pass, describe this as a **WebAssembly shell prototype**,
+not "Blender in the browser." See [Build reality check](docs/BUILD.md),
+[project summary](docs/MVP_SUMMARY.md), and [full Blender later](docs/minimax-real-render/05-full-blender-later.md).
+
 ## Features
 
-- **Browser-Native**: Runs entirely in the browser with WebAssembly
-- **Offline-First**: Works without internet after initial load
-- **Installable PWA**: Install on desktop or mobile like a native app
-- **Progressive Enhancement**: Adapts to your hardware (WebGPU/WebGL/SIMD)
-- **Local Storage**: Projects saved locally in your browser
-- **Open Source**: Built with transparency and community contribution
+- **Browser shell**: SolidJS application shell and client-side platform runtime
+- **Offline-first PWA**: Service worker and local-first application storage
+- **Installable**: PWA install support on compatible desktop and mobile browsers
+- **Runtime infrastructure**: Module registry, dependency-aware WASM loader, and download management
+- **Local storage**: IndexedDB/OPFS-backed application data and project metadata
+- **Experimental WASM bridges**: Minimal Blender-derived `clog`/allocator and `blenlib` bridge work; not a complete Blender runtime
+- **Open source**: Build and recovery work is documented in the repository
 
 ## Quick Start
 
@@ -91,9 +120,13 @@ Download the latest release from the Releases page. Run `start.sh` to serve loca
                │
       Dynamically Loaded
                │
-┌──────────────────────────────┐
-│     Blender Core (WASM)       │
-└──────────────────────────────┘
+┌─────────────────────────────────────┐
+│ Experimental Blender-derived WASM    │
+│ bridges (minimal / blenlib only)     │
+└─────────────────────────────────────┘
+
+Full Blender runtime, Python/bpy, editor viewport, and Cycles rendering are
+not currently integrated.
 ```
 
 ## Technology Stack

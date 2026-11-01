@@ -2,7 +2,17 @@
 
 ## Overview
 
-Blender Web Edition is a Progressive Web Application (PWA) that delivers Blender functionality in the browser using WebAssembly.
+Blender Web Edition is a Progressive Web Application (PWA) shell with experimental WebAssembly runtime infrastructure. The full Blender application is not currently integrated; the present WASM work is limited to minimal and blenlib bridges.
+
+## Implementation boundary
+
+The architecture below describes the browser shell and host platform, not a
+completed Blender port. The current checked-in build artifacts are a minimal
+bridge linked to Blender `clog`/allocator code and an experimental
+`blenlib` bridge. There is no complete Blender editor, Python/`bpy`
+runtime, Cycles renderer, or verified browser scene-editing workflow yet.
+See [BUILD.md](BUILD.md) for the current build reality check and
+[MVP_SUMMARY.md](MVP_SUMMARY.md) for acceptance criteria.
 
 ## High-Level Architecture
 
