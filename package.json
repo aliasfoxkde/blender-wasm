@@ -1,7 +1,7 @@
 {
   "name": "blender-wasm",
   "version": "0.1.0",
-  "description": "Blender optimized and compiled to run in the browser",
+  "description": "Browser-based PWA shell and experimental WebAssembly runtime scaffolding for a future Blender port",
   "type": "module",
   "license": "GPL-3.0-or-later",
   "scripts": {
