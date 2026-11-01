@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **next-generation web-native Blender distribution** — a progressive web application (PWA) that delivers Blender in the browser via WebAssembly. The philosophy is "Build the best possible Blender experience using modern web architecture" rather than simply "Run Blender in a browser."
+This is a **prototype PWA shell and experimental WebAssembly host** for a future browser-based Blender port. The full Blender application is not currently integrated. Keep implementation claims aligned with `docs/BUILD.md` and `docs/MVP_SUMMARY.md`.
 
-**Current State**: MVP implementation phase. Core platform, testing framework, and documentation are in place.
+**Current State**: Browser shell and platform infrastructure are implemented. Minimal and blenlib WASM bridge experiments exist; full Blender core, Python/bpy, editor viewport, and Cycles rendering remain unimplemented.
 
 ## Build Commands
 
@@ -37,10 +37,8 @@ Cloudflare Pages (static hosting)
                │ (dynamically loaded)
                ▼
 ┌─────────────────────────────────┐
-│     Blender Core (WASM)          │
-│  Mesh | Sculpt | Animation       │
-│  Geometry Nodes | Rendering      │
-│  Import/Export | Extensions      │
+│ Experimental Blender-derived    │
+│ minimal / blenlib WASM bridges   │
 └─────────────────────────────────┘
 ```
 
@@ -78,10 +76,10 @@ src/
 
 ## Core Design Principles
 
-1. **Local-first**: Everything important executes locally — modeling, sculpting, rendering, export/import
+1. **Local-first target**: The intended Blender workflow is local-first; current shell storage and runtime scaffolding are implemented, while modeling/rendering remain future integration work
 2. **Offline-first**: After installation, the app works without internet; connectivity only for collaboration/cloud
 3. **Progressive Enhancement**: Features adapt based on hardware capability (CPU, GPU, RAM, WebGPU, SIMD, Threads, Memory64)
-4. **Instant Perceived Startup**: HTML splash → navigation usable at 300ms → Blender interactive at 2-5s
+4. **Instant Perceived Startup target**: HTML shell first; Blender runtime startup targets remain unverified until the real core is integrated
 
 ## Key Modules
 
